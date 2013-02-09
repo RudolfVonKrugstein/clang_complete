@@ -178,6 +178,24 @@ function! s:ClangCompleteInit()
     endif
   endif
 
+python << endpython
+import vim
+import projectDatabase
+filePath = vim.eval('expand("%:p")')
+args = vim.eval('b:clang_parameters')
+projectDatabase.onLoadFile(filePath, args.split(" "))
+endpython
+
+endfunction
+
+au BufDelete call <SID>ClangDeleteBuffer()
+
+function! s:ClangDeleteBuffer()
+python << endpython
+filePath = vim.eval('expand("%:p")')
+projectDatabase.onUnloadFile(filePath)
+endpython
+endfunction
 endfunction
 
 function! LoadUserOptions()
