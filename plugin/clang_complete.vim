@@ -196,6 +196,13 @@ filePath = vim.eval('expand("%:p")')
 projectDatabase.onUnloadFile(filePath)
 endpython
 endfunction
+
+function! ClangCreateOrUpdateProject()
+python << endpython
+filePath = vim.eval('expand("%:p")')
+args = vim.eval('b:clang_parameters')
+projectDatabase.createProjectForFile(filePath, args.split(" "))
+endpython
 endfunction
 
 function! LoadUserOptions()
