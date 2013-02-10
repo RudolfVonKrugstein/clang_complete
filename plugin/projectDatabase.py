@@ -259,7 +259,7 @@ class ProjectDatabase:
        they are declated. If multiple positions are found for, the type name
        is returned multiple times.
        Returns a list of typles:
-       [(typeName,(fileName,line,column),kindname),...]
+       [(typeName,(fileName,line,column),kindname,usr),...]
        '''
     for k,usr in self.usrInfos.iteritems():
       if not usr.isType():
@@ -272,12 +272,12 @@ class ProjectDatabase:
       else:
         positions = usr.declarations
       for p in positions:
-        yield (tName,p,kind)
+        yield (tName,p,kind,usr.usr)
 
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
        Returns a list of typles:
-       [(typeName,(fileName,line,column),kindname),...]'''
+       [(typeName,(fileName,line,column),kindname,usr),...]'''
     for k,usr in self.usrInfos.iteritems():
       if not usr.isType():
         continue
@@ -290,7 +290,7 @@ class ProjectDatabase:
         positions = usr.declarations
       for p in positions:
         if self.fileInfos.has_key(p[0]):
-          yield (tName,p,kind)
+          yield (tName,p,kind,usr.usr)
 
   def getDerivedClassesTypeNames(self, baseUsr):
     '''Iterator for type name of classes derived from the class specified by the usr
