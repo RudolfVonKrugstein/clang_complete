@@ -86,13 +86,13 @@ class ProjectDatabase:
     pickle.dump(self,f,protocol=2)
     f.close()
 
-  def addFile(self,fileName, args = None):
+  def addFile(self,fileName, args = None, unsaved_files = None):
     ''' Add a file to database'''
     # check if file is already known
     if (self.fileInfos.has_key(fileName)):
       return
     print "Parsing",fileName
-    transUnit = cindex.TranslationUnit.from_source(fileName, args = args)
+    transUnit = cindex.TranslationUnit.from_source(fileName, args = args, unsaved_files = unsaved_files)
     cursor = transUnit.cursor
 
     # remember file
@@ -101,6 +101,10 @@ class ProjectDatabase:
     fileInfo = self.fileInfos[fileName]
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
+
+  def updateFilesMtimeWithoutReparse(self, fileName):
+    mtime = os.path.getmtime(fileName)
+    self.fileInfos[fileName].mtime = mtime
 
   def removeFile(self,fileName):
     ''' Remove a file from the database.
@@ -114,13 +118,13 @@ class ProjectDatabase:
     
     del self.fileInfos[fileName]
 
-  def updateOrAddFile(self,fileName, args = None):
+  def updateOrAddFile(self,fileName, args = None, unsaved_files = None):
     ''' Remove (if it exits) and re-add a file'''
     if self.fileInfos.has_key(fileName):
       self.removeFile(fileName)
-    self.addFile(fileName, args)
+    self.addFile(fileName, args, unsaved_files)
 
-  def updateOutdatedFiles(self, root, args):
+  def updateOutdatedFiles(self, root, args, unsaved_files):
     ''' Search for files which mtime is older than the mtime of the file on disc
         and update those.
         Also update all files for which the args are different than the given ones.
@@ -137,10 +141,10 @@ class ProjectDatabase:
     for f in removedFiles:
       self.removeFile(f)
     for f in outdatedFiles:
-      self.updateOrAddFile(f, args)
+      self.updateOrAddFile(f, args, unsaved_files)
     for f in find_cpp_files(root):
       if not self.fileInfos.has_key(f):
-        addFile(f,args)
+        addFile(f,args, unsaved_files)
 
   def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
@@ -200,7 +204,7 @@ class ProjectDatabase:
       refUsrInfo = addDeclaration(ref)
 
     # add the curser itself
-    # declarations or defintions ...
+    # declarations or  ...
     if c.kind.is_declaration():
       addDeclaration(c)
 
@@ -313,6 +317,14 @@ class ProjectDatabase:
             for p in positions:
               yield (baseName,p)
 
+class OpenFile():
+  '''Class representing a file currently loaded in a buffer and belonging
+     to a project.'''
+  def __init__(self,name,changedtick):
+    self.name = name
+    # save changedtick so we know when the files buffer was changed
+    self.changedtick = changedtick
+
 class LoadedProject():
   '''Class representing a project loaded in memory.
      The class stores the location of the project root,
@@ -320,27 +332,35 @@ class LoadedProject():
   def __init__(self, root, args):
     self.root = root
     self.args = args
-    self.openFiles = set()
+    self.openFiles = dict()
     self.project = None
 
-  def loadProject(self):
+  def loadProject(self, unsaved_files):
     self.project = ProjectDatabase.loadProject(os.path.join(self.root, ".clang_complete.project.dict"))
-    self.project.updateOutdatedFiles(self.root, self.args)
+    self.project.updateOutdatedFiles(self.root, self.args, unsaved_files)
 
-  def buildProjectDatabase(self):
+  def buildProjectDatabase(self, unsaved_files):
     '''Take a directory and build a project database'''
     self.project = ProjectDatabase()
     for f in find_cpp_files(self.root):
-      self.project.addFile(f, self.args)
+      self.project.addFile(f, self.args, unsaved_files)
 
-  def openFile(self, path):
-    self.openFiles.add(path)
-    self.project.addFile(path,self.args)
+  def openFile(self, path, changedtick, unsaved_files):
+    self.openFiles[path] = OpenFile(path, changedtick)
+    self.project.addFile(path,self.args, unsaved_files)
 
   def closeFile(self,path):
     '''Close the file and return if any files are still open'''
-    self.openFiles.delete(path)
+    del self.openFiles[path]
     return len(self.openFiles) == 0
+
+  def updateProjectWithOpenFiles(self,files,modifiedFiles):
+    ''' Expects a list of tuples for files:
+        [(filePath,translationUnit,changedtick)].
+        For modified files it expects all files that contain changed contents to 
+        what is on discL
+        [(filePath,bufferContents)]'''
+
 
 def searchUpwardForFile(startPath, fileName):
   '''Return the first encounter of the searched file, upward from the current direcotry'''
@@ -365,19 +385,19 @@ def filesProjectRoot(filePath):
 # global dictonary of all loaded projects
 loadedProjects = dict()
 
-def onLoadFile(filePath, args):
+def onLoadFile(filePath, args, changedtick, unsaved_files):
   '''Check if the project for the file already exists. If not, create a new project.
      Add the file to the project.'''
   projectRoot = filesProjectRoot(filePath)
   if projectRoot is None:
     return None
   if loadedProjects.has_key(projectRoot):
-    loadedProjects[projectRoot].openFile(filePath)
+    loadedProjects[projectRoot].openFile(filePath, changedtick, unsaved_files)
   else:
     print "Loading clang project dictonary at " + projectRoot
     loadedProjects[projectRoot] = LoadedProject(projectRoot, args)
-    loadedProjects[projectRoot].loadProject()
-    loadedProjects[projectRoot].openFile(filePath)
+    loadedProjects[projectRoot].loadProject(unsaved_files)
+    loadedProjects[projectRoot].openFile(filePath, changedtick, unsaved_files)
   return projectRoot
 
 def getFilesProject(filePath):
@@ -403,11 +423,12 @@ def onUnloadFile(filePath):
   if projectRoot is not None:
     if loadedProjects.has_key(projectRoot):
       if loadedProjects[projectRoot].closeFile(filePath):
-        print "Sabing clang project dictonary at " + projectRoot
+        # should we also update the project here?
+        print "Saving clang project dictonary at " + projectRoot
         loadedProject[projectRoot].saveProject(os.path.join(projectRoot, ".clang_complete.project.dict"));
         del loadedProjects[projectRoot]
 
-def createOrUpdateProjectForFile(path,args):
+def createOrUpdateProjectForFile(path,args, unsaved_files):
   '''Create a project for the file, by searching for .clang_complete
      and creating the project there'''
   projectPath = searchUpwardForFile(path,".clang_complete")
@@ -417,10 +438,10 @@ def createOrUpdateProjectForFile(path,args):
   proj = getOrLoadFilesProject(path, args)
   if proj is None:
     proj = LoadedProject(projectPath,args)
-    proj.buildProjectDatabase()
+    proj.buildProjectDatabase(unsaved_files)
   else:
     proj.loadProject()
-    proj.updateOutdatedFiles()
+    proj.updateOutdatedFiles(projectPath, args, unsaved_files)
   proj.project.saveProject(os.path.join(projectPath, ".clang_complete.project.dict"))
   return projectPath
 
