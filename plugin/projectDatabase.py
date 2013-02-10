@@ -95,7 +95,6 @@ class ProjectDatabase:
     transUnit = cindex.TranslationUnit.from_source(fileName, args = args)
     cursor = transUnit.cursor
 
-
     # remember file
     mtime = os.path.getmtime(fileName)
     self.fileInfos[fileName] = FileInfo(fileName, mtime, args)
@@ -121,23 +120,26 @@ class ProjectDatabase:
       self.removeFile(fileName)
     self.addFile(fileName, args)
 
-  def updateOutdatedFiles(self):
+  def updateOutdatedFiles(self, root, args):
     ''' Search for files which mtime is older than the mtime of the file on disc
         and update those.
         Also remove files not existing anymore.'''
     outdatedFiles = []
     removedFiles  = []
-    for name,data in self.fileInfos:
+    for file,fileInfo in self.fileInfos.iteritems():
       try:
-        mtime = os.path.getmtime(name)
-        if mtime > data[1]:
-          outdatedFiles.append(name)
+        mtime = os.path.getmtime(fileInfo.name)
+        if mtime > fileInfo.mtime:
+          outdatedFiles.append(fileInfo.name)
       except:
-        removedFiles.append(name)
+        removedFiles.append(fileInfo.name)
     for f in removedFiles:
       self.removeFile(f)
     for f in outdatedFiles:
-      self.updateOrAddFile(f)
+      self.updateOrAddFile(f, args)
+    for f in find_cpp_files(root):
+      if not self.fileInfos.has_key(f):
+        addFile(f,args)
 
   def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
@@ -322,6 +324,7 @@ class LoadedProject():
 
   def loadProject(self):
     self.project = ProjectDatabase.loadProject(os.path.join(self.root, ".clang_complete.project.dict"))
+    self.project.updateOutdatedFiles(self.root, self.args)
 
   def buildProjectDatabase(self):
     '''Take a directory and build a project database'''
@@ -331,6 +334,7 @@ class LoadedProject():
 
   def openFile(self, path):
     self.openFiles.add(path)
+    self.project.addFile(path,self.args)
 
   def closeFile(self,path):
     '''Close the file and return if any files are still open'''
@@ -364,14 +368,16 @@ def onLoadFile(filePath, args):
   '''Check if the project for the file already exists. If not, create a new project.
      Add the file to the project.'''
   projectRoot = filesProjectRoot(filePath)
-  if projectRoot is not None:
-    if loadedProjects.has_key(projectRoot):
-      loadedProjects[projectRoot].openFile(filePath)
-    else:
-      print "Loading clang project dictonary at " + projectRoot
-      loadedProjects[projectRoot] = LoadedProject(projectRoot, args)
-      loadedProjects[projectRoot].loadProject()
-      loadedProjects[projectRoot].openFile(filePath)
+  if projectRoot is None:
+    return None
+  if loadedProjects.has_key(projectRoot):
+    loadedProjects[projectRoot].openFile(filePath)
+  else:
+    print "Loading clang project dictonary at " + projectRoot
+    loadedProjects[projectRoot] = LoadedProject(projectRoot, args)
+    loadedProjects[projectRoot].loadProject()
+    loadedProjects[projectRoot].openFile(filePath)
+  return projectRoot
 
 def getFilesProject(filePath):
   projectRoot = filesProjectRoot(filePath)
@@ -396,18 +402,26 @@ def onUnloadFile(filePath):
   if projectRoot is not None:
     if loadedProjects.has_key(projectRoot):
       if loadedProjects[projectRoot].closeFile(filePath):
+        print "Sabing clang project dictonary at " + projectRoot
+        loadedProject[projectRoot].saveProject(os.path.join(projectRoot, ".clang_complete.project.dict"));
         del loadedProjects[projectRoot]
 
-def createProjectForFile(path,args):
+def createOrUpdateProjectForFile(path,args):
   '''Create a project for the file, by searching for .clang_complete
      and creating the project there'''
   projectPath = searchUpwardForFile(path,".clang_complete")
   if projectPath is None:
     print "Cannot create project because I cannot find .clang_complete"
-    return
-  proj = LoadedProject(projectPath,args)
-  proj.buildProjectDatabase()
+    return None
+  proj = getOrLoadFilesProject(path, args)
+  if proj is None:
+    proj = LoadedProject(projectPath,args)
+    proj.buildProjectDatabase()
+  else:
+    proj.loadProject()
+    proj.updateOutdatedFiles()
   proj.project.saveProject(os.path.join(projectPath, ".clang_complete.project.dict"))
+  return projectPath
 
 def getFilesProjectSymbolNames(filePath,args):
   proj = getOrLoadFilesProject(filePath, args)

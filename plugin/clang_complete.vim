@@ -183,7 +183,9 @@ import vim
 import projectDatabase
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
-projectDatabase.onLoadFile(filePath, args.split(" "))
+root = projectDatabase.onLoadFile(filePath, args.split(" "))
+if root is not None:
+  vim.command("let b:clang_project_root = \"" + root + "\"")
 endpython
 
 endfunction
@@ -191,17 +193,20 @@ endfunction
 au BufDelete call <SID>ClangDeleteBuffer()
 
 function! s:ClangDeleteBuffer()
-python << endpython
-filePath = vim.eval('expand("%:p")')
-projectDatabase.onUnloadFile(filePath)
-endpython
+  if exits("b:clang_project_root")
+    python filePath = vim.eval('expand("%:p")')
+    python projectDatabase.onUnloadFile(filePath)
+  endif
 endfunction
 
 function! ClangCreateOrUpdateProject()
 python << endpython
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
-projectDatabase.createProjectForFile(filePath, args.split(" "))
+if filePath != "":
+  root = projectDatabase.createOrUpdateProjectForFile(filePath, args.split(" "))
+  if root is not None:
+    vim.command("let b:clang_project_root = \"" + root + "\"")
 endpython
 endfunction
 
