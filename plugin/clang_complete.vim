@@ -7,7 +7,12 @@
 " Help: Use :help clang_complete
 "
 
-au FileType c,cpp,objc,objcpp call <SID>ClangCompleteInit()
+augroup clang_cmplete
+  au!
+  au FileType c,cpp,objc,objcpp call <SID>ClangCompleteInit()
+  au BufUnload * call <SID>ClangUnloadBuffer()
+  au BufWritePost * call <SID>ClangWriteBuffer()
+augroup END
 
 let b:clang_parameters = ''
 let b:clang_user_options = ''
@@ -191,16 +196,14 @@ endpython
 
 endfunction
 
-au BufDelete call <SID>ClangDeleteBuffer()
 
-function! s:ClangDeleteBuffer()
-  if exits("b:clang_project_root")
+function! s:ClangUnloadBuffer()
+  if exists("b:clang_project_root")
     python filePath = vim.eval('expand("%:p")')
-    python projectDatabase.onUnloadFile(filePath, getUnsavedFiles())
+    python projectDatabase.onUnloadFile(filePath)
   endif
 endfunction
 
-au BufWritePost call <SID>ClangWriteBuffer()
 
 function! s:ClangWriteBuffer()
   if exists("b:clang_project_root")
