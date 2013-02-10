@@ -16,9 +16,10 @@ if symbols is None:
 else:
   command = "let list = ["
   for s in symbols:
-    name = s[0]
+    kind = s[2]
+    name = s[0]  + " (" + kind + ")"
     pos  = s[1]
-    command = command + "[\"" + name +"\",\"" + s[1][0] + "\"," + str(s[1][1]) + "," + str(s[1][2]) + "],"
+    command = command + "[\"" + name +"\",\"" + pos[0] + "\"," + str(pos[1]) + "," + str(pos[2]) + "],"
 # replace last command by closing symbol
   command = command[:-1] + ']'
   vim.command(command)

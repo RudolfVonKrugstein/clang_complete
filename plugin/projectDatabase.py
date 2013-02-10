@@ -5,11 +5,12 @@ import cPickle as pickle
 # info about an usr
 class UsrInfo:
   ''' Information about an USR located in the database'''
-  def __init__(self, usr, displayname, spelling, lexical_parent_usr):
+  def __init__(self, usr, kind, displayname, spelling, lexical_parent_usr):
     self.usr = usr
+    self.kind = kind
     # files during which parsing this usr was found
     self.associatedFiles = set()
-    # location referencing this usr
+    # location referencing this usr. These are pairs of locations and cursor kinds
     self.references = set()
     # positions where this usr was declared (normaly there should be only one)
     self.declarations = set()
@@ -35,10 +36,19 @@ class UsrInfo:
     self.definitions.add((loc.file.name, loc.line, loc.column))
   def addDeclaration(self,loc):
     self.declarations.add((loc.file.name, loc.line, loc.column))
-  def addReference(self,loc):
-    self.references.add((loc.file.name, loc.line, loc.column))
+  def addReference(self,loc,kind):
+    self.references.add((loc.file.name, loc.line, loc.column, kind))
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(fileName)
+
+  def isType(self):
+    '''Checks if the Usr is a type. That is, if it is not a variable declaration.
+       Most likely this list is not complete ...
+       '''
+    return not (self.kind in [cindex.CursorKind.FIELD_DECL.value,
+                         cindex.CursorKind.ENUM_CONSTANT_DECL.value,
+                         cindex.CursorKind.VAR_DECL.value,
+                         cindex.CursorKind.PARM_DECL.value])
 
 class FileInfo:
   '''Information about a file located in a projects database'''
@@ -132,6 +142,12 @@ class ProjectDatabase:
         Also read any symbol cursor references
         and their lexical parents.
     '''
+    # there are some cursor, we are not interested in
+    # I am sure other things will come up
+    if c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
+                        cindex.CursorKind.LINKAGE_SPEC.value
+                       ]:
+      return
     # get anything we are referencing
     ref = None
     if (not (c.referenced is None)) and (c.referenced != conf.lib.clang_getNullCursor()):
@@ -155,7 +171,7 @@ class ProjectDatabase:
       # if the lexical parent is delcaration, than also add tit
       if not (cursor.lexical_parent is None) and cursor.lexical_parent.kind.is_declaration():
         addDeclaration(cursor.lexical_parent)
-      usrInfo = self.getOrCreateUsr(cursor.get_usr(), usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
+      usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
       if cursor.is_definition():
         usrInfo.addDefinition(cursor.location)
       else:
@@ -178,7 +194,7 @@ class ProjectDatabase:
     if c.kind.is_reference():
       if ref is None:
         raise RuntimeError("Reference without reference cursor")
-      refUsrInfo.addReference(c.location)
+      refUsrInfo.addReference(c.location, c.kind.value)
 
     # no idea what to do with this ...
     #if c.kind.is_attribute():
@@ -188,7 +204,7 @@ class ProjectDatabase:
     if c.kind.is_expression():
       # expression without references do not interest us
       if not (ref is None):
-        refUsrInfo.addReference(c.location)
+        refUsrInfo.addReference(c.location, c.kind.value)
 
   def buildDatabase(self,c, usrFileEntry, fileName):
     ''' Build (extend) the database based on a cursors.
@@ -205,12 +221,12 @@ class ProjectDatabase:
     for c in c.get_children():
       self.buildDatabase(c, usrFileEntry, fileName)
 
-  def getOrCreateUsr(self,usr,usrFileEntry,displayname,spelling,lexical_parent_usr):
+  def getOrCreateUsr(self,usr,kind,usrFileEntry,displayname,spelling,lexical_parent_usr):
     '''If the USR does not yet exist, create it.
        In any case, return it.'''
     usrFileEntry.usrStrings.add(usr)
     if not (self.usrInfos.has_key(usr)):
-      self.usrInfos[usr] = UsrInfo(usr, displayname, spelling, lexical_parent_usr)
+      self.usrInfos[usr] = UsrInfo(usr, kind, displayname, spelling, lexical_parent_usr)
     return self.usrInfos[usr]
 
   def getFullTypeNameFromUsr(self,usrName):
@@ -230,21 +246,32 @@ class ProjectDatabase:
   def getAllTypeNames(self):
     '''Iterator that returns all (full) type names and the position where
        they are declated. If multiple positions are found for, the type name
-       is returned multiple times.'''
+       is returned multiple times.
+       Returns a list of typles:
+       [(typeName,fileName,line,column,kindname),...]
+       '''
     for k,usr in self.usrInfos.iteritems():
+      if not usr.isType():
+        continue
       tName = self.getFullTypeName(usr)
+      kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
         positions = usr.definitions
       else:
         positions = usr.declarations
       for p in positions:
-        yield (tName,p)
+        yield (tName,p,kind)
 
   def getAllTypeNamesInProject(self):
-    ''' same as getAllTypeNames, but reduced to files in the project'''
+    ''' same as getAllTypeNames, but reduced to files in the project
+       Returns a list of typles:
+       [(typeName,fileName,line,column,kindname),...]'''
     for k,usr in self.usrInfos.iteritems():
+      if not usr.isType():
+        continue
       tName = self.getFullTypeName(usr)
+      kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
         positions = usr.definitions
@@ -252,7 +279,7 @@ class ProjectDatabase:
         positions = usr.declarations
       for p in positions:
         if self.fileInfos.has_key(p[0]):
-          yield (tName,p)
+          yield (tName,p,kind)
 
 class LoadedProject():
   '''Class representing a project loaded in memory.
