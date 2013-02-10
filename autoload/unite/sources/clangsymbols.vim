@@ -10,9 +10,10 @@ sys.path.insert(1, "../../../plugin")
 import projectDatabase
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
-symbols = projectDatabase.getFilesProjectSymbolNames(filePath,args)
+symbols = projectDatabase.getFilesProjectSymbolNames(filePath,args.split(" "))
 if symbols is None:
-  vim.command("let list = [[\"Nothing\",\"Nothing\",0,0]]")
+  print "Sorry, project database found (or no symbols in project database)"
+  vim.command("let list = []")
 else:
   command = "let list = ["
   for s in symbols:
