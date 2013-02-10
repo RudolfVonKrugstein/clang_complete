@@ -26,9 +26,9 @@ class UsrInfo:
 
   def removeFile(self,fileName):
     ''' Goes through all information about the usr and remove anything  that has to do wit the file. Returns if the usr has no associated files.'''
-    self.references = filter(file.name != fileName, self.references)
-    self.declarations = filter(file.name != fileName, self.declarations)
-    self.defintions = filter(file.name != fileName, self.defintions)
+    self.references   = set(filter(lambda loc: loc[0] != fileName, self.references))
+    self.declarations = set(filter(lambda loc: loc[0] != fileName, self.declarations))
+    self.definitions  = set(filter(lambda loc: loc[0] != fileName, self.definitions))
     self.associatedFiles.discard(fileName)
     return len(self.associatedFiles) == 0
 
