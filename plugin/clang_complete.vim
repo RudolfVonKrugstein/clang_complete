@@ -199,6 +199,18 @@ function! s:ClangDeleteBuffer()
     python projectDatabase.onUnloadFile(filePath, getUnsavedFiles())
   endif
 endfunction
+
+au BufWritePost call <SID>ClangWriteBuffer()
+
+function! s:ClangWriteBuffer()
+  if exists("b:clang_project_root")
+python << endpython
+filePath = vim.eval('expand("%:p")')
+changedtick = int(vim.eval("b:changedtick"))
+proj = projectDatabase.getFilesProject(filePath)
+if proj is not None:
+  proj.onFileSaved(filePath, changedtick, getUnsavedFiles())
+endpython
   endif
 endfunction
 

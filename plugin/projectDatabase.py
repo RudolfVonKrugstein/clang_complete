@@ -354,6 +354,19 @@ class LoadedProject():
     del self.openFiles[path]
     return len(self.openFiles) == 0
 
+  def onFileSaved(self,path,changedtick,unsaved_files):
+    '''When a file is saved, we want to know so that when the changedtick of the file
+       is up to date (meaning the file that is changed is already up to date in the database)
+       we want to update the mtime without reparsing it.
+       Also of the file is not part of the project (because it did not exist under its file name before)
+       we want to add it now.
+       '''
+    if self.openFiles.has_key(path):
+      if self.openFiles[path].changedtick == changedtick:
+        self.project.updateFilesMtimeWithoutReparse(path)
+    else:
+      self.openFile(path,changedtick,unsaved_files)
+
   def updateProjectWithOpenFiles(self,files,modifiedFiles):
     ''' Expects a list of tuples for files:
         [(filePath,translationUnit,changedtick)].
