@@ -769,4 +769,10 @@ function! g:ClangSetSnippetEngine(engine_name)
   endtry
 endfunction
 
+" debug function
+function! g:echoUsrUnderCursor()
+  python print "Usr: ",getUsrUnderCursor()
+endfunction
+
+
 " vim: set ts=2 sts=2 sw=2 expandtab :

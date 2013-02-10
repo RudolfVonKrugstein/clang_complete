@@ -36,8 +36,10 @@ class UsrInfo:
     self.definitions.add((loc.file.name, loc.line, loc.column))
   def addDeclaration(self,loc):
     self.declarations.add((loc.file.name, loc.line, loc.column))
-  def addReference(self,loc,kind):
-    self.references.add((loc.file.name, loc.line, loc.column, kind))
+  def addReference(self,loc,kind,parent = None):
+    ''' From the parent we can get the type of the derived class in
+        case of a CXX_BASE_SPECIFIER.'''
+    self.references.add((loc.file.name, loc.line, loc.column, kind, parent))
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(fileName)
 
@@ -99,7 +101,7 @@ class ProjectDatabase:
     self.fileInfos[fileName] = FileInfo(fileName, mtime, args)
     fileInfo = self.fileInfos[fileName]
     # build database with file
-    self.buildDatabase(cursor,fileInfo,fileName)
+    self.buildDatabase(cursor,None,fileInfo,fileName)
 
   def removeFile(self,fileName):
     ''' Remove a file from the database.
@@ -137,17 +139,26 @@ class ProjectDatabase:
     for f in outdatedFiles:
       self.updateOrAddFile(f)
 
-  def readCursor(self,c, usrFileEntry, fileName):
+  def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
         Also read any symbol cursor references
         and their lexical parents.
     '''
+
     # there are some cursor, we are not interested in
     # I am sure other things will come up
     if c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
                         cindex.CursorKind.LINKAGE_SPEC.value
                        ]:
       return
+
+    # get the usr of the parent
+    # this is interesting for CXX_BASE_SPECIFIER, becaue we can get the type of the
+    # derived class this way
+    if parent is not None:
+      parentUsr = parent.get_usr()
+    else:
+      parentUsr = None
     # get anything we are referencing
     ref = None
     if (not (c.referenced is None)) and (c.referenced != conf.lib.clang_getNullCursor()):
@@ -194,7 +205,7 @@ class ProjectDatabase:
     if c.kind.is_reference():
       if ref is None:
         raise RuntimeError("Reference without reference cursor")
-      refUsrInfo.addReference(c.location, c.kind.value)
+      refUsrInfo.addReference(c.location, c.kind.value, parentUsr)
 
     # no idea what to do with this ...
     #if c.kind.is_attribute():
@@ -204,9 +215,9 @@ class ProjectDatabase:
     if c.kind.is_expression():
       # expression without references do not interest us
       if not (ref is None):
-        refUsrInfo.addReference(c.location, c.kind.value)
+        refUsrInfo.addReference(c.location, c.kind.value, parentUsr)
 
-  def buildDatabase(self,c, usrFileEntry, fileName):
+  def buildDatabase(self,c,parent, usrFileEntry, fileName):
     ''' Build (extend) the database based on a cursors.
         Calls readCursor and recurse'''
     # if we are outside of the src file
@@ -216,10 +227,10 @@ class ProjectDatabase:
     if not (c.location.file is None) and c.location.file.name != fileName:
       return
     
-    self.readCursor(c, usrFileEntry, fileName)
+    self.readCursor(c,parent, usrFileEntry, fileName)
 
-    for c in c.get_children():
-      self.buildDatabase(c, usrFileEntry, fileName)
+    for child in c.get_children():
+      self.buildDatabase(child, c, usrFileEntry, fileName)
 
   def getOrCreateUsr(self,usr,kind,usrFileEntry,displayname,spelling,lexical_parent_usr):
     '''If the USR does not yet exist, create it.
@@ -248,7 +259,7 @@ class ProjectDatabase:
        they are declated. If multiple positions are found for, the type name
        is returned multiple times.
        Returns a list of typles:
-       [(typeName,fileName,line,column,kindname),...]
+       [(typeName,(fileName,line,column),kindname),...]
        '''
     for k,usr in self.usrInfos.iteritems():
       if not usr.isType():
@@ -266,7 +277,7 @@ class ProjectDatabase:
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
        Returns a list of typles:
-       [(typeName,fileName,line,column,kindname),...]'''
+       [(typeName,(fileName,line,column),kindname),...]'''
     for k,usr in self.usrInfos.iteritems():
       if not usr.isType():
         continue
@@ -280,6 +291,24 @@ class ProjectDatabase:
       for p in positions:
         if self.fileInfos.has_key(p[0]):
           yield (tName,p,kind)
+
+  def getDerivedClassesTypeNames(self, baseUsr):
+    '''Iterator for type name of classes derived from the class specified by the usr
+       Returns a list of tuples:
+       [(typename,(fileName,line,column))]'''
+    if not self.usrInfos.has_key(baseUsr):
+      print "Sorry, base class not found"
+    else:
+      for file,row,column,kind,parentUsr in self.usrInfos[baseUsr].references:
+        if kind == cindex.CursorKind.CXX_BASE_SPECIFIER.value:
+          if (parentUsr is None) or (not self.usrInfos.has_key(parentUsr)):
+            print "Sorry, no usr for derived class of ",baseUsr
+          else:
+            baseUsrInfo = self.usrInfos[parentUsr]
+            positions = baseUsrInfo.definitions
+            baseName = self.getFullTypeName(baseUsrInfo)
+            for p in positions:
+              yield (baseName,p)
 
 class LoadedProject():
   '''Class representing a project loaded in memory.
@@ -383,9 +412,16 @@ def createProjectForFile(path,args):
 def getFilesProjectSymbolNames(filePath,args):
   proj = getOrLoadFilesProject(filePath, args)
   if proj is None:
-    print "Sorry, no project for file found"
+    print "Sorry, no project for file " + filePath + " found"
   else:
     return proj.project.getAllTypeNamesInProject()
+
+def getFilesProjectDerivedClassesSymbolNamesForBaseUsr(filePath, args, baseUsr):
+  proj = getOrLoadFilesProject(filePath, args)
+  if proj is None:
+    print "Sorry, no project for file " + filePath + " found"
+  else:
+    return proj.project.getDerivedClassesTypeNames(baseUsr)
 
 def find_files(directory, patterns):
   ''' Supporting function to iterate over all files

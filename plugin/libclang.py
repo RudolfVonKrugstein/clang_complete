@@ -166,6 +166,30 @@ def getCurrentTranslationUnit(args, currentFile, fileName, timer,
   timer.registerEvent("Generate PCH cache")
   return tu
 
+
+def getUsrUnderCursor():
+  global debug
+  debug = int(vim.eval("g:clang_debug")) == 1
+  params = getCompileParams(vim.current.buffer.name)
+  timer = CodeCompleteTimer(debug, vim.current.buffer.name, -1, -1, params)
+
+  with workingDir(params['cwd']):
+    with libclangLock:
+      line, col = vim.current.window.cursor
+      tu = getCurrentTranslationUnit(params['args'], getCurrentFile(),
+                                     vim.current.buffer.name, timer, update = True)
+      f = File.from_name(tu, vim.current.buffer.name)
+      loc = SourceLocation.from_position(tu, f, line, col + 1)
+      cursor = Cursor.from_location(tu, loc)
+      # find the correct reference for the cursor
+      if cursor.referenced is not None:
+        cursor = cursor.referenced
+      cursor = cursor.canonical
+      usr = cursor.get_usr()
+
+  timer.finish()
+  return usr
+
 def splitOptions(options):
   optsList = []
   opt = ""
@@ -343,6 +367,8 @@ def getCurrentCompletionResults(line, column, args, currentFile, fileName,
       complete_flags)
   timer.registerEvent("Code Complete")
   return cr
+
+
 
 def formatResult(result):
   completion = dict()
