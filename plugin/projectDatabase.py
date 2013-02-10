@@ -118,6 +118,20 @@ class ProjectDatabase:
     
     del self.fileInfos[fileName]
 
+  def updateFileWithTU(fileName,tu,args,unsaved_files):
+    ''' Update a file, but without creating a tu for it, but use the given tu.'''
+    if self.fileInfos.has_key(fileName):
+      self.removeFile(fileName)
+    print "Parsing with exisiting tu",fileName
+    cursor = tu.cursor
+
+    # remember file
+    mtime = os.path.getmtime(fileName)
+    self.fileInfos[fileName] = FileInfo(fileName, mtime, args)
+    fileInfo = self.fileInfos[fileName]
+    # build database with file
+    self.buildDatabase(cursor,None,fileInfo,fileName)
+
   def updateOrAddFile(self,fileName, args = None, unsaved_files = None):
     ''' Remove (if it exits) and re-add a file'''
     if self.fileInfos.has_key(fileName):
@@ -367,12 +381,21 @@ class LoadedProject():
     else:
       self.openFile(path,changedtick,unsaved_files)
 
-  def updateProjectWithOpenFiles(self,files,modifiedFiles):
+  def updateProjectWithOpenFiles(self,files,unsaved_files):
     ''' Expects a list of tuples for files:
         [(filePath,translationUnit,changedtick)].
         For modified files it expects all files that contain changed contents to 
         what is on discL
         [(filePath,bufferContents)]'''
+    for filePath,tu,changedtick in files:
+      # check if the file belongs to this project at all
+      if not os.path.normpath(filePath).startswith(os.normpath(self.root)):
+        continue
+      # check if we already are up to date
+      if self.openFiles[filePath].changedtick == changedtick:
+        continue
+      self.project.updateFileWithTU(filePath,tu,self.args,unsaved_files)
+      self.openFiles[filePath].changedtick = changedtick
 
 
 def searchUpwardForFile(startPath, fileName):
