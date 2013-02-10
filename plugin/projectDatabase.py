@@ -123,13 +123,14 @@ class ProjectDatabase:
   def updateOutdatedFiles(self, root, args):
     ''' Search for files which mtime is older than the mtime of the file on disc
         and update those.
+        Also update all files for which the args are different than the given ones.
         Also remove files not existing anymore.'''
     outdatedFiles = []
     removedFiles  = []
     for file,fileInfo in self.fileInfos.iteritems():
       try:
         mtime = os.path.getmtime(fileInfo.name)
-        if mtime > fileInfo.mtime:
+        if mtime > fileInfo.mtime or fileInfo.args != args:
           outdatedFiles.append(fileInfo.name)
       except:
         removedFiles.append(fileInfo.name)
