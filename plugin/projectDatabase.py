@@ -437,9 +437,10 @@ def onUnloadFile(filePath):
     if loadedProjects.has_key(projectRoot):
       if loadedProjects[projectRoot].closeFile(filePath):
         # should we also update the project here?
-        print "Saving clang project dictonary at " + projectRoot
-        loadedProject[projectRoot].saveProject(os.path.join(projectRoot, ".clang_complete.project.dict"));
-        del loadedProjects[projectRoot]
+        if loadedProjects[projectRoot].project is not None:
+          print "Saving clang project dictonary at " + projectRoot
+          loadedProjects[projectRoot].project.saveProject(os.path.join(projectRoot, ".clang_complete.project.dict"));
+          del loadedProjects[projectRoot]
 
 def createOrUpdateProjectForFile(path,args, unsaved_files):
   '''Create a project for the file, by searching for .clang_complete
