@@ -64,10 +64,36 @@ class FileInfo:
     # add information if the file is open
     self.isOpen = False
     self.changedtick = 0
+    # diagnostics for the file
+    self.diagnostics = set()
 
   def open(self, changedtick):
     self.isOpen = True
     self.changedtick = changedtick
+
+  def parseDiagnostics(self, diagnostics):
+    self.diagnostics = set()
+    for d in diagnostics:
+      if d.location.file:
+        filename = d.location.file.name
+      else:
+        filename = ""
+      # get the type
+      if d.severity == d.Ignored:
+        type = 'I'
+      elif d.severity == d.Note:
+        type = 'I'
+      elif d.severity == d.Warning:
+        if "argument unused during compilation" in d.spelling:
+          continue
+        type = 'W'
+      elif d.severity == d.Error:
+        type = 'E'
+      elif d.severity == d.Fatal:
+        type = 'E'
+      else:
+        continue
+      self.diagnostics.add((filename, d.location.line, d.location.column, d.spelling, type, d.severity))
 
 
 class ProjectDatabase:
@@ -94,6 +120,12 @@ class ProjectDatabase:
     else:
       raise RuntimeError(dictPath + " is not a saved project database")
 
+  def getAllDiagnostics(self):
+    res = set()
+    for p,f in self.fileInfos.iteritems():
+      res = res.union(f.diagnostics)
+    return res
+
   def saveProject(self,dictPath):
     f = open(dictPath,"w")
     pickle.dump(self,f,protocol=2)
@@ -112,6 +144,7 @@ class ProjectDatabase:
     mtime = os.path.getmtime(fileName)
     self.fileInfos[fileName] = FileInfo(fileName, mtime, self.args)
     fileInfo = self.fileInfos[fileName]
+    fileInfo.parseDiagnostics(transUnit.diagnostics)
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
 
@@ -170,6 +203,7 @@ class ProjectDatabase:
     mtime = os.path.getmtime(fileName)
     self.fileInfos[fileName] = FileInfo(fileName, mtime, self.args)
     fileInfo = self.fileInfos[fileName]
+    fileInfo.parseDiagnostics(transUnit.diagnostics)
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
 
@@ -441,6 +475,11 @@ def onFileSaved(self,path,changedtick,unsaved_files):
   proj = getOrLoadFilesProject(path)
   if proj is not None:
     proj.onFileSaved(path,changedtick,unsaved_files)
+
+def getProjectFromRoot(root):
+  if loadedProjects.has_key(root):
+    return loadedProjects[root]
+  return None
 
 def getFilesProject(filePath):
   projectRoot = filesProjectRoot(filePath)

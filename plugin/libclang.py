@@ -279,6 +279,19 @@ def getQuickFix(diagnostic):
 def getQuickFixList(tu):
   return filter (None, map (getQuickFix, tu.diagnostics))
 
+def getProjectsQuickFixList(projectPath):
+  proj = projectDatabase.getProjectFromRoot(projectPath)
+  if proj is None:
+    return []
+  def makeQuickFix(i):
+    return { 'bufnr' : int (vim.eval("bufnr('" + i[0] + "', 1)")),
+             'lnum'  : i[1],
+             'col'   : i[2],
+             'text'  : i[3],
+             'type'  : i[4]
+           }
+  return map (makeQuickFix,proj.getAllDiagnostics())
+
 def highlightRange(range, hlGroup):
   pattern = '/\%' + str(range.start.line) + 'l' + '\%' \
       + str(range.start.column) + 'c' + '.*' \
@@ -310,9 +323,12 @@ def highlightCurrentDiagnostics():
     highlightDiagnostics(translationUnits[vim.current.buffer.name])
 
 def getCurrentQuickFixList():
+  projPath = vim.eval("b:clang_project_root")
+  ql = getProjectsQuickFixList(projPath)
   if vim.current.buffer.name in translationUnits:
-    return getQuickFixList(translationUnits[vim.current.buffer.name])
-  return []
+    ql.extend(getQuickFixList(translationUnits[vim.current.buffer.name]))
+  return ql
+
 
 # Get the compilation parameters from the compilation database for source
 # 'fileName'. The parameters are returned as map with the following keys :
