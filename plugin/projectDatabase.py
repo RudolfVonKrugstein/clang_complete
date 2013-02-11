@@ -203,7 +203,7 @@ class ProjectDatabase:
     mtime = os.path.getmtime(fileName)
     self.fileInfos[fileName] = FileInfo(fileName, mtime, self.args)
     fileInfo = self.fileInfos[fileName]
-    fileInfo.parseDiagnostics(transUnit.diagnostics)
+    fileInfo.parseDiagnostics(tu.diagnostics)
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
 
