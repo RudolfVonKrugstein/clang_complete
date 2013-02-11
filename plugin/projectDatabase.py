@@ -282,7 +282,7 @@ class ProjectDatabase:
 
     # helper function adding declaration and returning the corresponding usr
     def addDeclaration(cursor):
-      # if the lexical parent is delcaration, than also add tit
+      # if the lexical parent is delcaration, than also add it
       if not (cursor.lexical_parent is None) and cursor.lexical_parent.kind.is_declaration():
         addDeclaration(cursor.lexical_parent)
       usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
@@ -323,13 +323,12 @@ class ProjectDatabase:
   def buildDatabase(self,c,parent, usrFileEntry, fileName):
     ''' Build (extend) the database based on a cursors.
         Calls readCursor and recurse'''
-    # if we are outside of the src file
-    # we are not interested. We are only interested in things defined, declared or referenced in out source file
+    # if we are outside of the project
+    # we are not interested. We are only interested in things defined, declared or referenced in a file part of the project
     # and since we parse all files, we can be sure not to miss anything
     # if we do stop when not in the source file, database building takes much longer
-    if not (c.location.file is None) and c.location.file.name != fileName:
+    if not (c.location.file is None) and not c.location.file.name.startswith(self.root)
       return
-    
     self.readCursor(c,parent, usrFileEntry, fileName)
 
     for child in c.get_children():
