@@ -212,7 +212,7 @@ filePath = vim.eval('expand("%:p")')
 changedtick = int(vim.eval("b:changedtick"))
 proj = projectDatabase.getFilesProject(filePath)
 if proj is not None:
-  projPath = vim.eval("b:clang_project_rppt")
+  projPath = vim.eval("b:clang_project_root")
   proj.onFileSaved(filePath, changedtick, getUnsavedFilesInProject(projPath))
 endpython
   endif

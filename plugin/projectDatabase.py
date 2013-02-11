@@ -61,15 +61,24 @@ class FileInfo:
     self.args = args
     # change time when this file was parsed
     self.mtime = mtime
+    # add information if the file is open
+    self.isOpen = False
+    self.changedtick = 0
+
+  def open(self, changedtick):
+    self.isOpen = True
+    self.changedtick = changedtick
 
 
 class ProjectDatabase:
   ''' Database for all files of a project.'''
-  def __init__(self):
+  def __init__(self, root, args):
     # files in the project and the corresponing FileInfo
     self.fileInfos = dict()
     # USRs in this project and the corresponding UsrInfo
     self.usrInfos = dict()
+    self.args = args
+    self.root = root
 
   @staticmethod
   def loadProject(dictPath):
@@ -77,6 +86,10 @@ class ProjectDatabase:
     res = pickle.load(f)
     f.close()
     if isinstance(res,ProjectDatabase):
+      # mark all files closed
+      for p,f in res.fileInfos.iteritems():
+        f.isOpen = False
+        f.changedtick = 0
       return res
     else:
       raise RuntimeError(dictPath + " is not a saved project database")
@@ -86,21 +99,49 @@ class ProjectDatabase:
     pickle.dump(self,f,protocol=2)
     f.close()
 
-  def addFile(self,fileName, args = None, unsaved_files = None):
+  def addFile(self,fileName, unsaved_files = None):
     ''' Add a file to database'''
     # check if file is already known
     if (self.fileInfos.has_key(fileName)):
       return
     print "Parsing",fileName
-    transUnit = cindex.TranslationUnit.from_source(fileName, args = args, unsaved_files = unsaved_files)
+    transUnit = cindex.TranslationUnit.from_source(fileName, args = self.args, unsaved_files = unsaved_files)
     cursor = transUnit.cursor
 
     # remember file
     mtime = os.path.getmtime(fileName)
-    self.fileInfos[fileName] = FileInfo(fileName, mtime, args)
+    self.fileInfos[fileName] = FileInfo(fileName, mtime, self.args)
     fileInfo = self.fileInfos[fileName]
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
+
+  def openFile(self, path, changedtick, unsaved_files):
+    '''Mark the file as open. if not in project, add it.'''
+    if not self.fileInfos.has_key(path):
+      self.addFile(path, unsaved_files)
+    self.fileInfos[path].open(changedtick)
+
+  def closeFile(self,path):
+    '''Mark the file as closed and return if there are anymore open files.'''
+    if self.fileInfos.has_key(path):
+      fileInfos[path].close()
+    for p,f in self.fileInfos.iteritems():
+      if f.isOpen:
+        return False
+    return True
+
+  def onFileSaved(self, path, changedtick, unsaved_files):
+    '''When a file is saved, we want to know so that when the changedtick of the file
+         is up to date (meaning the file that is changed is already up to date in the database)
+         we want to update the mtime without reparsing it.
+         Also of the file is not part of the project (because it did not exist under its file name before)
+         we want to add it now.
+         '''
+    if self.fileInfos.has_key(path):
+      if self.fileInfos[path].changedtick == changedtick:
+        self.project.updateFilesMtimeWithoutReparse(path)
+    else:
+      self.openFile(path,changedtick,unsaved_files)
 
   def updateFilesMtimeWithoutReparse(self, fileName):
     mtime = os.path.getmtime(fileName)
@@ -118,7 +159,7 @@ class ProjectDatabase:
     
     del self.fileInfos[fileName]
 
-  def updateFileWithTU(fileName,tu,args,unsaved_files):
+  def updateFileWithTU(fileName,tu,unsaved_files):
     ''' Update a file, but without creating a tu for it, but use the given tu.'''
     if self.fileInfos.has_key(fileName):
       self.removeFile(fileName)
@@ -127,18 +168,18 @@ class ProjectDatabase:
 
     # remember file
     mtime = os.path.getmtime(fileName)
-    self.fileInfos[fileName] = FileInfo(fileName, mtime, args)
+    self.fileInfos[fileName] = FileInfo(fileName, mtime, self.args)
     fileInfo = self.fileInfos[fileName]
     # build database with file
     self.buildDatabase(cursor,None,fileInfo,fileName)
 
-  def updateOrAddFile(self,fileName, args = None, unsaved_files = None):
+  def updateOrAddFile(self,fileName, unsaved_files = None):
     ''' Remove (if it exits) and re-add a file'''
     if self.fileInfos.has_key(fileName):
       self.removeFile(fileName)
-    self.addFile(fileName, args, unsaved_files)
+    self.addFile(fileName, unsaved_files)
 
-  def updateOutdatedFiles(self, root, args, unsaved_files):
+  def updateOutdatedFiles(self, unsaved_files):
     ''' Search for files which mtime is older than the mtime of the file on disc
         and update those.
         Also update all files for which the args are different than the given ones.
@@ -148,17 +189,17 @@ class ProjectDatabase:
     for file,fileInfo in self.fileInfos.iteritems():
       try:
         mtime = os.path.getmtime(fileInfo.name)
-        if mtime > fileInfo.mtime or fileInfo.args != args:
+        if mtime > fileInfo.mtime or fileInfo.args != self.args:
           outdatedFiles.append(fileInfo.name)
       except:
         removedFiles.append(fileInfo.name)
     for f in removedFiles:
       self.removeFile(f)
     for f in outdatedFiles:
-      self.updateOrAddFile(f, args, unsaved_files)
-    for f in find_cpp_files(root):
+      self.updateOrAddFile(f, unsaved_files)
+    for f in find_cpp_files(self.root):
       if not self.fileInfos.has_key(f):
-        addFile(f,args, unsaved_files)
+        addFile(f,unsaved_files)
 
   def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
@@ -331,71 +372,21 @@ class ProjectDatabase:
             for p in positions:
               yield (baseName,p)
 
-class OpenFile():
-  '''Class representing a file currently loaded in a buffer and belonging
-     to a project.'''
-  def __init__(self,name,changedtick):
-    self.name = name
-    # save changedtick so we know when the files buffer was changed
-    self.changedtick = changedtick
-
-class LoadedProject():
-  '''Class representing a project loaded in memory.
-     The class stores the location of the project root,
-     files loaded for the project and compilation options.'''
-  def __init__(self, root, args):
-    self.root = root
-    self.args = args
-    self.openFiles = dict()
-    self.project = None
-
-  def loadProject(self, unsaved_files):
-    self.project = ProjectDatabase.loadProject(os.path.join(self.root, ".clang_complete.project.dict"))
-    self.project.updateOutdatedFiles(self.root, self.args, unsaved_files)
-
-  def buildProjectDatabase(self, unsaved_files):
-    '''Take a directory and build a project database'''
-    self.project = ProjectDatabase()
-    for f in find_cpp_files(self.root):
-      self.project.addFile(f, self.args, unsaved_files)
-
-  def openFile(self, path, changedtick, unsaved_files):
-    self.openFiles[path] = OpenFile(path, changedtick)
-    self.project.addFile(path,self.args, unsaved_files)
-
-  def closeFile(self,path):
-    '''Close the file and return if any files are still open'''
-    del self.openFiles[path]
-    return len(self.openFiles) == 0
-
-  def onFileSaved(self,path,changedtick,unsaved_files):
-    '''When a file is saved, we want to know so that when the changedtick of the file
-       is up to date (meaning the file that is changed is already up to date in the database)
-       we want to update the mtime without reparsing it.
-       Also of the file is not part of the project (because it did not exist under its file name before)
-       we want to add it now.
-       '''
-    if self.openFiles.has_key(path):
-      if self.openFiles[path].changedtick == changedtick:
-        self.project.updateFilesMtimeWithoutReparse(path)
-    else:
-      self.openFile(path,changedtick,unsaved_files)
-
-  def updateProjectWithOpenFiles(self,files,unsaved_files):
-    ''' Expects a list of tuples for files:
-        [(filePath,translationUnit,changedtick)].
-        For modified files it expects all files that contain changed contents to 
-        what is on discL
-        [(filePath,bufferContents)]'''
-    for filePath,tu,changedtick in files:
-      # check if the file belongs to this project at all
-      if not os.path.normpath(filePath).startswith(os.normpath(self.root)):
-        continue
-      # check if we already are up to date
-      if self.openFiles[filePath].changedtick == changedtick:
-        continue
-      self.project.updateFileWithTU(filePath,tu,self.args,unsaved_files)
-      self.openFiles[filePath].changedtick = changedtick
+#  def updateProjectWithOpenFiles(self,files,unsaved_files):
+#    ''' Expects a list of tuples for files:
+#        [(filePath,translationUnit,changedtick)].
+#        For modified files it expects all files that contain changed contents to 
+#        what is on discL
+#        [(filePath,bufferContents)]'''
+#    for filePath,tu,changedtick in files:
+#      # check if the file belongs to this project at all
+#      if not os.path.normpath(filePath).startswith(os.normpath(self.root)):
+#        continue
+#      # check if we already are up to date
+#      if self.openFiles[filePath].changedtick == changedtick:
+#        continue
+#      self.project.updateFileWithTU(filePath,tu,self.args,unsaved_files)
+#      self.openFiles[filePath].changedtick = changedtick
 
 
 def searchUpwardForFile(startPath, fileName):
@@ -424,17 +415,22 @@ loadedProjects = dict()
 def onLoadFile(filePath, args, changedtick, unsaved_files):
   '''Check if the project for the file already exists. If not, create a new project.
      Add the file to the project.'''
-  projectRoot = filesProjectRoot(filePath)
-  if projectRoot is None:
-    return None
-  if loadedProjects.has_key(projectRoot):
-    loadedProjects[projectRoot].openFile(filePath, changedtick, unsaved_files)
-  else:
-    print "Loading clang project dictonary at " + projectRoot
-    loadedProjects[projectRoot] = LoadedProject(projectRoot, args)
-    loadedProjects[projectRoot].loadProject(unsaved_files)
-    loadedProjects[projectRoot].openFile(filePath, changedtick, unsaved_files)
-  return projectRoot
+  proj = getOrLoadFilesProject(filePath, args)
+  if proj is not None:
+    proj.openFile(filePath, changedtick, unsaved_files)
+    return proj.root
+  return None
+
+def onFileSaved(self,path,changedtick,unsaved_files):
+  '''When a file is saved, we want to know so that when the changedtick of the file
+       is up to date (meaning the file that is changed is already up to date in the database)
+       we want to update the mtime without reparsing it.
+       Also of the file is not part of the project (because it did not exist under its file name before)
+       we want to add it now.
+       '''
+  proj = getOrLoadFilesProject(path)
+  if proj is not None:
+    proj.onFileSaved(path,changedtick,unsaved_files)
 
 def getFilesProject(filePath):
   projectRoot = filesProjectRoot(filePath)
@@ -449,21 +445,20 @@ def getOrLoadFilesProject(filePath, args):
   projectRoot = filesProjectRoot(filePath)
   if projectRoot is not None:
     if not loadedProjects.has_key(projectRoot):
-      loadedProjects[projectRoot] = LoadedProject(projectRoot, args)
-      loadedProjects[projectRoot].loadProject()
+      print "Loading clang project dictonary at " + projectRoot
+      loadedProjects[projectRoot] = ProjectDatabase.loadProject(os.path.join(projectRoot, ".clang_complete.project.dict"))
+      loadedProjects[projectRoot].args = args
     return loadedProjects[projectRoot]
   return None
 
 def onUnloadFile(filePath):
-  projectRoot = filesProjectRoot(filePath)
-  if projectRoot is not None:
-    if loadedProjects.has_key(projectRoot):
-      if loadedProjects[projectRoot].closeFile(filePath):
-        # should we also update the project here?
-        if loadedProjects[projectRoot].project is not None:
-          print "Saving clang project dictonary at " + projectRoot
-          loadedProjects[projectRoot].project.saveProject(os.path.join(projectRoot, ".clang_complete.project.dict"));
-          del loadedProjects[projectRoot]
+  proj = getFilesProject(filePath)
+  if proj is not None:
+    proj.closeFile(filePath)
+    # should we also update the project here?
+    print "Saving clang project dictonary at " + projectRoot
+    proj.saveProject(os.path.join(proj.root, ".clang_complete.project.dict"));
+    del loadedProjects[proj.root]
 
 def createOrUpdateProjectForFile(path,args, unsaved_files):
   '''Create a project for the file, by searching for .clang_complete
@@ -474,12 +469,13 @@ def createOrUpdateProjectForFile(path,args, unsaved_files):
     return None
   proj = getOrLoadFilesProject(path, args)
   if proj is None:
-    proj = LoadedProject(projectPath,args)
-    proj.buildProjectDatabase(unsaved_files)
+    proj = ProjectDatabase(projectPath,args)
+    for f in find_cpp_files(projectPath):
+      proj.addFile(f,unsaved_files)
   else:
-    proj.loadProject()
-    proj.updateOutdatedFiles(projectPath, args, unsaved_files)
-  proj.project.saveProject(os.path.join(projectPath, ".clang_complete.project.dict"))
+    proj.args = args
+    proj.updateOutdatedFiles(unsaved_files)
+  proj.saveProject(os.path.join(projectPath, ".clang_complete.project.dict"))
   return projectPath
 
 def getFilesProjectSymbolNames(filePath,args):
@@ -487,14 +483,14 @@ def getFilesProjectSymbolNames(filePath,args):
   if proj is None:
     print "Sorry, no project for file " + filePath + " found"
   else:
-    return proj.project.getAllTypeNamesInProject()
+    return proj.getAllTypeNamesInProject()
 
 def getFilesProjectDerivedClassesSymbolNamesForBaseUsr(filePath, args, baseUsr):
   proj = getOrLoadFilesProject(filePath, args)
   if proj is None:
     print "Sorry, no project for file " + filePath + " found"
   else:
-    return proj.project.getDerivedClassesTypeNames(baseUsr)
+    return proj.getDerivedClassesTypeNames(baseUsr)
 
 def find_files(directory, patterns):
   ''' Supporting function to iterate over all files
