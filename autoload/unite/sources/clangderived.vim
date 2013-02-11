@@ -12,7 +12,8 @@ import projectDatabase
 baseUsr = getUsrUnderCursor()
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
-print "baseUsr:", baseUsr
+projRoot = vim.eval('b:clang_project_root')
+bringProjectUpToDate(projRoot)
 if baseUsr is None or baseUsr == "":
   vim.command("let list = []")
 else:

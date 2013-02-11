@@ -10,6 +10,8 @@ sys.path.insert(1, "../../../plugin")
 import projectDatabase
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
+projRoot = vim.eval('b:clang_project_root')
+bringProjectUpToDate(projRoot)
 symbols = projectDatabase.getFilesProjectSymbolNames(filePath,args.split(" "))
 if symbols is None:
   print "Sorry, project database found (or no symbols in project database)"

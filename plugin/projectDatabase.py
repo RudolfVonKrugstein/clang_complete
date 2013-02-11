@@ -159,7 +159,7 @@ class ProjectDatabase:
     
     del self.fileInfos[fileName]
 
-  def updateFileWithTU(fileName,tu,unsaved_files):
+  def updateFileWithTU(self,fileName,tu,unsaved_files):
     ''' Update a file, but without creating a tu for it, but use the given tu.'''
     if self.fileInfos.has_key(fileName):
       self.removeFile(fileName)
@@ -178,6 +178,13 @@ class ProjectDatabase:
     if self.fileInfos.has_key(fileName):
       self.removeFile(fileName)
     self.addFile(fileName, unsaved_files)
+
+  def updateOutdatedFilesWithTUs(self, tus, unsaved_files):
+    for filePath,tu,changedtick in tus:
+      if self.fileInfos.has_key(filePath):
+        if self.fileInfos[filePath].changedtick < changedtick:
+          self.updateFileWithTU(filePath, tu, unsaved_files)
+          self.fileInfos[filePath].changedtick = changedtick
 
   def updateOutdatedFiles(self, unsaved_files):
     ''' Search for files which mtime is older than the mtime of the file on disc
@@ -388,6 +395,9 @@ class ProjectDatabase:
 #      self.project.updateFileWithTU(filePath,tu,self.args,unsaved_files)
 #      self.openFiles[filePath].changedtick = changedtick
 
+def updateProjectWithTUs(projectPath, tus, unsaved_files):
+  loadedProjects[projectPath].updateOutdatedFilesWithTUs(tus, unsaved_files)
+  loadedProjects[projectPath].updateOutdatedFiles(unsaved_files)
 
 def searchUpwardForFile(startPath, fileName):
   '''Return the first encounter of the searched file, upward from the current direcotry'''

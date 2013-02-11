@@ -1,4 +1,5 @@
 from clang.cindex import *
+import projectDatabase
 import vim
 import time
 import threading
@@ -83,6 +84,21 @@ def initClangComplete(clang_complete_flags, clang_compilation_database, \
   libclangLock = threading.Lock()
   return 1
 
+def bringProjectUpToDate(projectPath):
+  tus = getAllFilesTUAndChangedtick()
+  unsaved_files = getUnsavedFilesInProject(projectPath)
+  projectDatabase.updateProjectWithTUs(projectPath, tus, unsaved_files)
+
+def getAllFilesTUAndChangedtick():
+  '''Returns a list of filepathes with correspondings TUs and changedticks'''
+  res = []
+  for b in vim.buffers:
+    hasProj = int(vim.eval("has_key(getbufvar("+str(b.number) +",\"\"),\"clang_project_root\")"))
+    if hasProj != 0:
+      tu = translationUnits.get(b.name)
+      if tu is not None:
+        res.append((b.name, tu, int(vim.eval("getbufvar("+str(b.number) + ",\"changedtick\")"))))
+  return res
 
 def getUnsavedFiles():
   '''Returns a list of pairs with the filePath and file contents for all files not saved.'''
@@ -91,7 +107,7 @@ def getUnsavedFiles():
     mod = int(vim.eval("getbufvar(" + str(b.number) + ",\"&mod\")"))
     hasProj = int(vim.eval("has_key(getbufvar("+str(b.number) +",\"\"),\"clang_project_root\")"))
     if mod != 0 and hasProj != 0:
-      res.append((b.name + str(b.number), "\n".join(vim.current.buffer[:])))
+      res.append((b.name, "\n".join(vim.current.buffer[:])))
   return res
 
 def getUnsavedFilesInProject(projectPath):
@@ -103,7 +119,7 @@ def getUnsavedFilesInProject(projectPath):
     if mod != 0 and hasProj != 0:
       pPath = vim.eval("getbufvar(" + str(b.number) + ",\"clang_project_root\")")
       if pPath == projectPath:
-        res.append((b.name + str(b.number), "\n".join(vim.current.buffer[:])))
+        res.append((b.name, "\n".join(vim.current.buffer[:])))
   return res
 
 # Get a tuple (fileName, fileContent) for the file opened in the current

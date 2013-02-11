@@ -798,5 +798,9 @@ function! g:echoUsrUnderCursor()
   python print "Usr: ",getUsrUnderCursor()
 endfunction
 
+function! ClangBringProjectUpToDate()
+  python projRoot = vim.eval('b:clang_project_root')
+  python bringProjectUpToDate(projRoot)
+endfunction
 
 " vim: set ts=2 sts=2 sw=2 expandtab :
