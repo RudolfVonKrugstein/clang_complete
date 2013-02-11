@@ -508,7 +508,7 @@ def find_files(directory, patterns):
 
 def find_cpp_files(path = "."):
   '''Iterate over all files which are cpp file'''
-  return find_files(path,["*.cpp","*.cc","*.h","*.hpp"])
+  return find_files(path,["*.cpp","*.cc","*.h","*.hpp","*.inl"])
 
 conf = cindex.Config()
 
