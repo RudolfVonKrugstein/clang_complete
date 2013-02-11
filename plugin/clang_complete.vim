@@ -220,6 +220,7 @@ endfunction
 
 function! ClangCreateOrUpdateProject()
 python << endpython
+import vim
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
 if filePath != "":

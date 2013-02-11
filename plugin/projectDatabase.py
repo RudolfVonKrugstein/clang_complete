@@ -521,6 +521,7 @@ def createOrUpdateProjectForFile(path,args, unsaved_files):
     proj = ProjectDatabase(projectPath,args)
     for f in find_cpp_files(projectPath):
       proj.addFile(f,unsaved_files)
+    loadedProjects[projectPath] = proj
   else:
     proj.args = args
     proj.updateOutdatedFiles(unsaved_files)
