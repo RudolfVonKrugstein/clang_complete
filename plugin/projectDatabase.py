@@ -103,7 +103,7 @@ class FileInfo():
         type = 'E'
       else:
         continue
-      self.diagnostics.add((filename, d.location.line, d.location.column, d.spelling, type, d.severity))
+      self.diagnostics.add((filename, d.location.line, d.location.column, d.spelling + " (while parsing " + os.path.basename(self.name) + ")" , type, d.severity))
 
   def addInclude(self,file,changedtick = 0):
     mtime = os.path.getmtime(file)
