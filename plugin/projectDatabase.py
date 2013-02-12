@@ -235,8 +235,8 @@ class ProjectDatabase:
        we want to add it now.
        '''
     if path in self.includedFiles:
-      for file in self.includedFiles[path]:
-        file.onWriteFile(path, changedtick)
+      for file in self.includedFiles[path].dependedFiles:
+        self.fileInfos[file].onWriteFile(path, changedtick)
 
   def removeFile(self,fileName):
     ''' Remove a file from the database.
