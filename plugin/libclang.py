@@ -202,8 +202,6 @@ def getUsrUnderCursor():
       # find the correct reference for the cursor
       if cursor.referenced is not None:
         cursor = cursor.referenced
-      if cursor.referenced is not None:
-        cursor = cursor.referenced
       cursor = cursor.canonical
       usr = cursor.get_usr()
 
