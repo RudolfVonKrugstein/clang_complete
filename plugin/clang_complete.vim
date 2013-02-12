@@ -189,7 +189,7 @@ import projectDatabase
 filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
 changedtick = int(vim.eval('b:changedtick'))
-root = projectDatabase.onLoadFile(filePath, args.split(" "), changedtick, getUnsavedFiles())
+root = projectDatabase.onLoadFile(filePath, args.split(" "), changedtick)
 if root is not None:
   vim.command("let b:clang_project_root = \"" + root + "\"")
 endpython
@@ -213,7 +213,7 @@ changedtick = int(vim.eval("b:changedtick"))
 proj = projectDatabase.getFilesProject(filePath)
 if proj is not None:
   projPath = vim.eval("b:clang_project_root")
-  proj.onFileSaved(filePath, changedtick, getUnsavedFilesInProject(projPath))
+  proj.onFileSaved(filePath, changedtick)
 endpython
   endif
 endfunction
