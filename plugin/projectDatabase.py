@@ -43,14 +43,16 @@ class UsrInfo:
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(os.path.normpath(fileName))
 
-  def isType(self):
+  def listInAllTypeNames(self):
     '''Checks if the Usr is a type. That is, if it is not a variable declaration.
        Most likely this list is not complete ...
        '''
     return not (self.kind in [cindex.CursorKind.FIELD_DECL.value,
                          cindex.CursorKind.ENUM_CONSTANT_DECL.value,
                          cindex.CursorKind.VAR_DECL.value,
-                         cindex.CursorKind.PARM_DECL.value])
+                         cindex.CursorKind.PARM_DECL.value,
+                         cindex.CursorKind.TEMPLATE_TYPE_PARAMETER.value,
+                         cindex.CursorKind.TEMPLATE_NON_TYPE_PARAMETER.value])
 
   def isInProject(self, root):
     for d in self.definitions:
@@ -417,6 +419,13 @@ class ProjectDatabase:
     else:
       return usrInfo.spelling
 
+  def getFullDisplayTypeName(self,usrInfo):
+    '''Get the full type name, with the top level beeing the display name.'''
+    if not (usrInfo.lexical_parent is None):
+      return self.getFullTypeNameFromUsr(usrInfo.lexical_parent) + "::" + usrInfo.displayname
+    else:
+      return usrInfo.displayname
+
   def getUsrLocations(self, usr, locType):
     return self.usrInfos[usr].getLocations(locType)
 
@@ -428,9 +437,9 @@ class ProjectDatabase:
        [(typeName,(fileName,line,column),kindname,usr),...]
        '''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.isType():
+      if not usr.listInAllTypeNames():
         continue
-      tName = self.getFullTypeName(usr)
+      tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
@@ -444,9 +453,9 @@ class ProjectDatabase:
        Returns a list of typles:
        [(typeName,(fileName,line,column),kindname,usr),...]'''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.isType():
+      if not usr.listInAllTypeNames():
         continue
-      tName = self.getFullTypeName(usr)
+      tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
