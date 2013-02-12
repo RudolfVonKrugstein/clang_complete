@@ -21,19 +21,17 @@ else:
   for s in symbols:
     kind = s[2]
     name = s[0]  + " (" + kind + ")"
-    pos  = s[1]
-    command = command + "[\"" + name +"\",\"" + pos[0] + "\"," + str(pos[1]) + "," + str(pos[2]) + "],"
+    usr  = s[3]
+    command = command + "[\"" + name +"\",\"" + usr + "\"],"
 # replace last command by closing symbol
   command = command[:-1] + ']'
   vim.command(command)
 endpython
   return map(list, '{
         \ "word" : v:val[0],
-        \ "file"  : v:val[1],
-        \ "line"  : v:val[2],
-        \ "column": v:val[3],
+        \ "usr"  : v:val[1],
         \ "source": "clangsymbols",
-        \ "kind"  : "goto",
+        \ "kind"  : "clangsymbols",
         \ }')
 endfunction
 

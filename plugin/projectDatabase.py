@@ -52,6 +52,26 @@ class UsrInfo:
                          cindex.CursorKind.VAR_DECL.value,
                          cindex.CursorKind.PARM_DECL.value])
 
+  def isInProject(self, root):
+    for d in self.definitions:
+      if d[0].startswith(root):
+        return True
+    for d in self.declarations:
+      if d[0].startswith(root):
+        return True
+    return False
+
+  def getLocations(self, locType):
+    if locType == "declarations":
+      return self.delcarations
+    if locType == "defintions":
+      return self.defintions
+    if locType == "references":
+      return self.references
+    if locType == "declarations_and_definitions":
+      return self.declarations.union(self.definitions)
+
+
 class UnsavedFile():
   '''Information about a file still in the buffer.'''
   def __init__(self,name,buffer,changedtick,tu = None):
@@ -397,6 +417,9 @@ class ProjectDatabase:
     else:
       return usrInfo.spelling
 
+  def getUsrLocations(self, usr, locType):
+    return self.usrInfos[usr].getLocations(locType)
+
   def getAllTypeNames(self):
     '''Iterator that returns all (full) type names and the position where
        they are declated. If multiple positions are found for, the type name
@@ -414,8 +437,7 @@ class ProjectDatabase:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      for p in positions:
-        yield (tName,p,kind,usr.usr)
+      yield (tName,positions,kind,usr.usr)
 
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
@@ -431,9 +453,8 @@ class ProjectDatabase:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      for p in positions:
-        if p[0].startswith(self.root):
-          yield (tName,p,kind,usr.usr)
+      if usr.isInProject(self.root):
+        yield (tName,positions,kind,usr.usr)
 
   def getDerivedClassesTypeNames(self, baseUsr):
     '''Iterator for type name of classes derived from the class specified by the usr
