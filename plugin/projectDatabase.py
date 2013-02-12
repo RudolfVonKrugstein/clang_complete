@@ -33,15 +33,15 @@ class UsrInfo:
     return len(self.associatedFiles) == 0
 
   def addDefinition(self,loc):
-    self.definitions.add((loc.file.name, loc.line, loc.column))
+    self.definitions.add((os.path.normpath(loc.file.name), loc.line, loc.column))
   def addDeclaration(self,loc):
-    self.declarations.add((loc.file.name, loc.line, loc.column))
+    self.declarations.add((os.path.normpath(loc.file.name), loc.line, loc.column))
   def addReference(self,loc,kind,parent = None):
     ''' From the parent we can get the type of the derived class in
         case of a CXX_BASE_SPECIFIER.'''
-    self.references.add((loc.file.name, loc.line, loc.column, kind, parent))
+    self.references.add((os.path.normpath(loc.file.name), loc.line, loc.column, kind, parent))
   def addAssociatedFile(self,fileName):
-    self.associatedFiles.add(fileName)
+    self.associatedFiles.add(os.path.normpath(fileName))
 
   def isType(self):
     '''Checks if the Usr is a type. That is, if it is not a variable declaration.
@@ -55,7 +55,7 @@ class UsrInfo:
 class UnsavedFile():
   '''Information about a file still in the buffer.'''
   def __init__(self,name,buffer,changedtick,tu = None):
-    self.name = name
+    self.name = os.path.normpath(name)
     self.buffer = buffer
     self.changedtick = changedtick
     self.tu = tu
@@ -107,7 +107,7 @@ class FileInfo():
 
   def addInclude(self,file,changedtick = 0):
     mtime = os.path.getmtime(file)
-    self.includedFiles[file] = IncludeFileChangeTime(mtime, changedtick)
+    self.includedFiles[os.path.normpath(file)] = IncludeFileChangeTime(mtime, changedtick)
 
   def needsReparse(self,unsavedFiles):
     ''' Returns true if the files needs to be reparsed.'''
@@ -143,10 +143,10 @@ class IncludedFile():
     self.dependedFiles = set()
 
   def addDependendFile(self,path):
-    self.dependedFiles.add(path)
+    self.dependedFiles.add(os.path.normpath(path))
 
   def removeDependendFile(self,path):
-    self.dependedFiles.remove(path)
+    self.dependedFiles.remove(os.path.normpath(path))
     return len(self.dependedFiles) == 0
 
 
@@ -290,6 +290,7 @@ class ProjectDatabase:
 
     # there are some cursor, we are not interested in
     # I am sure other things will come up
+
     if c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
                         cindex.CursorKind.LINKAGE_SPEC.value
                        ]:
@@ -431,7 +432,7 @@ class ProjectDatabase:
       else:
         positions = usr.declarations
       for p in positions:
-        if self.fileInfos.has_key(p[0]):
+        if p[0].startswith(self.root):
           yield (tName,p,kind,usr.usr)
 
   def getDerivedClassesTypeNames(self, baseUsr):
@@ -530,7 +531,7 @@ def onUnloadFile(filePath):
   if proj is not None:
     proj.closeFile(filePath)
     # should we also update the project here?
-    print "Saving clang project dictonary at " + projectRoot
+    print "Saving clang project dictonary at " + proj.root
     proj.saveProject(os.path.join(proj.root, ".clang_complete.project.dict"));
     del loadedProjects[proj.root]
 

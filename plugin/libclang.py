@@ -93,11 +93,12 @@ def getUnsavedFiles():
   res = dict()
   for b in vim.buffers:
     mod = int(vim.eval("getbufvar(" + str(b.number) + ",\"&mod\")"))
+    name = os.path.abspath(b.name)
     if mod != 0:
       tu = translationUnits.get(b.name)
       if tu is not None:
         changedtick = vim.eval("getbufvar("+str(b.number) + ",\"changedtick\")")
-        res[b.name] = append(projectDatabase.UnsavedFile(b.name, "\n".join(b[:]), changedtick, tu))
+        res[name] = append(projectDatabase.UnsavedFile(name, "\n".join(b[:]), changedtick, tu))
   return res
 
 # Get a tuple (fileName, fileContent) for the file opened in the current
@@ -199,6 +200,8 @@ def getUsrUnderCursor():
       loc = SourceLocation.from_position(tu, f, line, col + 1)
       cursor = Cursor.from_location(tu, loc)
       # find the correct reference for the cursor
+      if cursor.referenced is not None:
+        cursor = cursor.referenced
       if cursor.referenced is not None:
         cursor = cursor.referenced
       cursor = cursor.canonical
