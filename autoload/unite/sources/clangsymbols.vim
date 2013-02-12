@@ -33,7 +33,7 @@ endpython
         \ "line"  : v:val[2],
         \ "column": v:val[3],
         \ "source": "clangsymbols",
-        \ "kind"  : "clangsymbols",
+        \ "kind"  : "goto",
         \ }')
 endfunction
 
