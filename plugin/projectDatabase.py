@@ -292,7 +292,8 @@ class ProjectDatabase:
     # I am sure other things will come up
 
     if c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
-                        cindex.CursorKind.LINKAGE_SPEC.value
+                        cindex.CursorKind.LINKAGE_SPEC.value,
+                        cindex.CursorKind.UNEXPOSED_DECL.value
                        ]:
       return
 
