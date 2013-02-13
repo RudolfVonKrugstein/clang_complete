@@ -794,6 +794,11 @@ function! g:ClangSetSnippetEngine(engine_name)
   endtry
 endfunction
 
+function! ClangGotoDeclarationsAndDefinitins()
+  python vim.command("let l:usr=\"" + getUsrUnderCursor() + "\"")
+  call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions']])
+endfunction
+
 " debug function
 function! g:echoUsrUnderCursor()
   python print "Usr: ",getUsrUnderCursor()

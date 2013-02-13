@@ -43,14 +43,36 @@ class UsrInfo:
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(os.path.normpath(fileName))
 
-  def isType(self):
+  def listInAllTypeNames(self):
     '''Checks if the Usr is a type. That is, if it is not a variable declaration.
        Most likely this list is not complete ...
        '''
     return not (self.kind in [cindex.CursorKind.FIELD_DECL.value,
                          cindex.CursorKind.ENUM_CONSTANT_DECL.value,
                          cindex.CursorKind.VAR_DECL.value,
-                         cindex.CursorKind.PARM_DECL.value])
+                         cindex.CursorKind.PARM_DECL.value,
+                         cindex.CursorKind.TEMPLATE_TYPE_PARAMETER.value,
+                         cindex.CursorKind.TEMPLATE_NON_TYPE_PARAMETER.value])
+
+  def isInProject(self, root):
+    for d in self.definitions:
+      if d[0].startswith(root):
+        return True
+    for d in self.declarations:
+      if d[0].startswith(root):
+        return True
+    return False
+
+  def getLocations(self, locType):
+    if locType == "declarations":
+      return self.delcarations
+    if locType == "defintions":
+      return self.defintions
+    if locType == "references":
+      return self.references
+    if locType == "declarations_and_definitions":
+      return self.declarations.union(self.definitions)
+
 
 class UnsavedFile():
   '''Information about a file still in the buffer.'''
@@ -398,6 +420,16 @@ class ProjectDatabase:
     else:
       return usrInfo.spelling
 
+  def getFullDisplayTypeName(self,usrInfo):
+    '''Get the full type name, with the top level beeing the display name.'''
+    if not (usrInfo.lexical_parent is None):
+      return self.getFullTypeNameFromUsr(usrInfo.lexical_parent) + "::" + usrInfo.displayname
+    else:
+      return usrInfo.displayname
+
+  def getUsrLocations(self, usr, locType):
+    return self.usrInfos[usr].getLocations(locType)
+
   def getAllTypeNames(self):
     '''Iterator that returns all (full) type names and the position where
        they are declated. If multiple positions are found for, the type name
@@ -406,35 +438,33 @@ class ProjectDatabase:
        [(typeName,(fileName,line,column),kindname,usr),...]
        '''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.isType():
+      if not usr.listInAllTypeNames():
         continue
-      tName = self.getFullTypeName(usr)
+      tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      for p in positions:
-        yield (tName,p,kind,usr.usr)
+      yield (tName,positions,kind,usr.usr)
 
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
        Returns a list of typles:
        [(typeName,(fileName,line,column),kindname,usr),...]'''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.isType():
+      if not usr.listInAllTypeNames():
         continue
-      tName = self.getFullTypeName(usr)
+      tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
       # add the declaration positions. If there are none, add definition positions
       if len(usr.declarations) == 0:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      for p in positions:
-        if p[0].startswith(self.root):
-          yield (tName,p,kind,usr.usr)
+      if usr.isInProject(self.root):
+        yield (tName,positions,kind,usr.usr)
 
   def getDerivedClassesTypeNames(self, baseUsr):
     '''Iterator for type name of classes derived from the class specified by the usr
