@@ -432,12 +432,13 @@ class ProjectDatabase:
     return self.usrInfos[usr].getLocations(locType)
 
   def getAllTypeNames(self):
-    '''Iterator that returns all (full) type names and the position where
+    '''List of all (full) type names and the position where
        they are declated. If multiple positions are found for, the type name
        is returned multiple times.
        Returns a list of typles:
        [(typeName,set([(fileName,line,column)...]),kindname,usr),...]
        '''
+    res = []
     for k,usr in self.usrInfos.iteritems():
       if not usr.shouldBeListed:
         continue
@@ -448,12 +449,15 @@ class ProjectDatabase:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      yield (tName,positions,kind,usr.usr)
+      res.append( (tName,positions,kind,usr.usr) )
+    res.sort()
+    return res
 
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
        Returns a list of typles:
        [(typeName,set([(fileName,line,column)...]),kindname,usr),...]'''
+    res = []
     for k,usr in self.usrInfos.iteritems():
       if not usr.shouldBeListed:
         continue
@@ -465,7 +469,9 @@ class ProjectDatabase:
       else:
         positions = usr.declarations
       if usr.isInProject:
-        yield (tName,positions,kind,usr.usr)
+        res.append( (tName,positions,kind,usr.usr) )
+    res.sort()
+    return res
 
   def getDerivedClassesTypeNames(self, baseUsr):
     '''Iterator for type name of classes derived from the class specified by the usr
