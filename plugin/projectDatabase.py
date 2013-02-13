@@ -64,14 +64,24 @@ class UsrInfo:
     return False
 
   def getLocations(self, locType):
+    ''' Get the locations, sorted!'''
     if locType == "declarations":
-      return self.delcarations
-    if locType == "defintions":
-      return self.defintions
+      res = list(self.declarations)
+      res.sort()
+      return res
+    if locType == "definitions":
+      res = list(self.definitions)
+      res.sort()
+      return res
     if locType == "references":
-      return self.references
+      res = self.references
+      res.sort()
+      return res
     if locType == "declarations_and_definitions":
-      return self.declarations.union(self.definitions)
+      decl = self.getLocations("declarations")
+      defi = self.getLocations("definitions")
+      decl.extend(defi)
+      return decl
 
 
 class UnsavedFile():
@@ -435,7 +445,7 @@ class ProjectDatabase:
        they are declated. If multiple positions are found for, the type name
        is returned multiple times.
        Returns a list of typles:
-       [(typeName,(fileName,line,column),kindname,usr),...]
+       [(typeName,set([(fileName,line,column)...]),kindname,usr),...]
        '''
     for k,usr in self.usrInfos.iteritems():
       if not usr.listInAllTypeNames():
@@ -452,7 +462,7 @@ class ProjectDatabase:
   def getAllTypeNamesInProject(self):
     ''' same as getAllTypeNames, but reduced to files in the project
        Returns a list of typles:
-       [(typeName,(fileName,line,column),kindname,usr),...]'''
+       [(typeName,set([(fileName,line,column)...]),kindname,usr),...]'''
     for k,usr in self.usrInfos.iteritems():
       if not usr.listInAllTypeNames():
         continue
