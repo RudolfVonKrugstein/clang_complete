@@ -23,6 +23,12 @@ class UsrInfo:
       self.lexical_parent = lexical_parent_usr
     else:
       self.lexical_parent = None
+    self.shouldBeListed = (self.kind not in [cindex.CursorKind.FIELD_DECL.value,
+      cindex.CursorKind.ENUM_CONSTANT_DECL.value,
+      cindex.CursorKind.VAR_DECL.value,
+      cindex.CursorKind.PARM_DECL.value,
+      cindex.CursorKind.TEMPLATE_TYPE_PARAMETER.value,
+      cindex.CursorKind.TEMPLATE_NON_TYPE_PARAMETER.value])
 
   def removeFile(self,fileName):
     ''' Goes through all information about the usr and remove anything  that has to do wit the file. Returns if the usr has no associated files.'''
@@ -42,17 +48,6 @@ class UsrInfo:
     self.references.add((os.path.normpath(loc.file.name), loc.line, loc.column, kind, parent))
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(os.path.normpath(fileName))
-
-  def listInAllTypeNames(self):
-    '''Checks if the Usr is a type. That is, if it is not a variable declaration.
-       Most likely this list is not complete ...
-       '''
-    return not (self.kind in [cindex.CursorKind.FIELD_DECL.value,
-                         cindex.CursorKind.ENUM_CONSTANT_DECL.value,
-                         cindex.CursorKind.VAR_DECL.value,
-                         cindex.CursorKind.PARM_DECL.value,
-                         cindex.CursorKind.TEMPLATE_TYPE_PARAMETER.value,
-                         cindex.CursorKind.TEMPLATE_NON_TYPE_PARAMETER.value])
 
   def isInProject(self, root):
     for d in self.definitions:
@@ -453,7 +448,7 @@ class ProjectDatabase:
        [(typeName,set([(fileName,line,column)...]),kindname,usr),...]
        '''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.listInAllTypeNames():
+      if not usr.shouldBeListed:
         continue
       tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
@@ -469,7 +464,7 @@ class ProjectDatabase:
        Returns a list of typles:
        [(typeName,set([(fileName,line,column)...]),kindname,usr),...]'''
     for k,usr in self.usrInfos.iteritems():
-      if not usr.listInAllTypeNames():
+      if not usr.shouldBeListed:
         continue
       tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
