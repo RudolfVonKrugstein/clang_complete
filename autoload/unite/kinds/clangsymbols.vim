@@ -10,7 +10,7 @@ let s:kind.action_table.listlocations = {
       \ }
 
 function! s:kind.action_table.listlocations.func(candidate)
-  call unite#start_temporary([['clangsymbollocations', a:candidate.usr, "declarations_and_definitions"]])
+  call unite#start([['clangsymbollocations', a:candidate.usr, "declarations_and_definitions"]])
 endfunction
 
 function! unite#kinds#clangsymbols#define()
