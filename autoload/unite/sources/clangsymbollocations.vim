@@ -30,11 +30,11 @@ else:
 endpython
   return map(list, '{
         \ "word" : v:val[0],
-        \ "file"  : v:val[1],
-        \ "line"  : v:val[2],
-        \ "column": v:val[3],
+        \ "action__path"  : v:val[1],
+        \ "action__line"  : v:val[2],
+        \ "action__col"   : v:val[3],
         \ "source": "clangsymbollocations",
-        \ "kind"  : "goto",
+        \ "kind"  : "jump_list",
         \ }')
 endfunction
 
