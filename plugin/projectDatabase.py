@@ -347,7 +347,7 @@ class ProjectDatabase:
     # helper function adding declaration and returning the corresponding usr
     def addDeclaration(cursor):
       # if the lexical parent is delcaration, than also add it
-      if not (cursor.lexical_parent is None) and cursor.lexical_parent.kind.is_declaration():
+      if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration():
         addDeclaration(cursor.lexical_parent)
       usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
       if cursor.is_definition():
