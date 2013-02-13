@@ -799,9 +799,17 @@ function! ClangGotoDeclarationsAndDefinitins()
   call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions']],{'auto_preview' : 1})
 endfunction
 
+function! ClangGotoNextOccurence()
+  python gotoNextOccurenceOfUsr(getUsrUnderCursor())
+endfunction
+
 " debug function
 function! g:echoUsrUnderCursor()
   python print "Usr: ",getUsrUnderCursor()
+endfunction
+
+function! g:echoLoadedProjects()
+  python projectDatabase.printLoadedProjects()
 endfunction
 
 function! ClangBringProjectUpToDate()

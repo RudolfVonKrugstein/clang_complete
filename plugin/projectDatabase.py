@@ -74,7 +74,7 @@ class UsrInfo:
       res.sort()
       return res
     if locType == "references":
-      res = self.references
+      res = map(lambda x: (x[0],x[1],x[2]), self.references)
       res.sort()
       return res
     if locType == "declarations_and_definitions":
@@ -82,6 +82,11 @@ class UsrInfo:
       defi = self.getLocations("definitions")
       decl.extend(defi)
       return decl
+    if locType == "occurences":
+      res = list(self.declarations.union(self.definitions))
+      res.extend(self.getLocations("references"))
+      res.sort()
+      return res
 
 
 class UnsavedFile():
@@ -566,6 +571,9 @@ def getOrLoadFilesProject(filePath, args):
       loadedProjects[projectRoot].args = args
     return loadedProjects[projectRoot]
   return None
+
+def printLoadedProjects():
+  print loadedProjects
 
 def onUnloadFile(filePath):
   proj = getFilesProject(filePath)

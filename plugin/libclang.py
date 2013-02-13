@@ -208,6 +208,29 @@ def getUsrUnderCursor():
   timer.finish()
   return usr
 
+def gotoNextOccurenceOfUsr(usr):
+  projPath = vim.eval("b:clang_project_root")
+  proj = projectDatabase.getProjectFromRoot(projPath)
+  line, col = vim.current.window.cursor
+  path = os.path.abspath(vim.current.buffer.name)
+  currentLocation = (path,line,col)
+
+  occ = proj.getUsrLocations(usr,"occurences")
+  if len(occ) ==0:
+    return
+  for o in occ:
+    if currentLocation < o:
+      openLocation(o)
+      return
+  openLocation(occ[0])
+
+def openLocation(l):
+  print "Opening location",l
+  path = l[0]
+  if vim.current.buffer.name != path:
+    vim.command("edit " + path)
+  vim.current.window.cursor = (l[1],l[2])
+
 def splitOptions(options):
   optsList = []
   opt = ""
