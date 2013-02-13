@@ -158,7 +158,8 @@ class IncludedFile():
       self.changedtick = changedtick
 
   def removeDependendFile(self,path):
-    self.dependedFiles.remove(os.path.normpath(path))
+    if path in self.dependedFiles:
+      self.dependedFiles.remove(os.path.normpath(path))
     return len(self.dependedFiles) == 0
 
 
@@ -263,7 +264,7 @@ class ProjectDatabase:
         # true means the USR is not referenced anymore
         del self.usrInfos[u]
    
-    for i in self.includedFiles:
+    for i in self.includedFiles.itervalues():
       i.removeDependendFile(fileName)
 
     del self.fileInfos[fileName]
@@ -286,6 +287,8 @@ class ProjectDatabase:
         mtime = os.path.getmtime(name)
         if mtime > includedFile.mtime:
           outdatedFiles = outdatedFiles.union(includedFile.dependedFiles)
+          # we will update, so update mtime
+          includedFile.mtime = mtime
           continue
       except:
         outdatedFiles = outdatedFiles.union(includedFile.dependedFiles)
@@ -293,6 +296,8 @@ class ProjectDatabase:
 
       if name in unsavedFiles:
         if includedFile.changedtick < unsavedFiles[name].changedtick:
+          # we will update, so update changedtick
+          includedFile.changedtick = unsavedFiles[name].changedtick
           outdatedFiles.append(includedFile)
 
     for f in outdatedFiles:
