@@ -23,12 +23,14 @@ class UsrInfo:
       self.lexical_parent = lexical_parent_usr
     else:
       self.lexical_parent = None
+    # set if this usr should be listed in a list of all types
     self.shouldBeListed = (self.kind not in [cindex.CursorKind.FIELD_DECL.value,
       cindex.CursorKind.ENUM_CONSTANT_DECL.value,
       cindex.CursorKind.VAR_DECL.value,
       cindex.CursorKind.PARM_DECL.value,
       cindex.CursorKind.TEMPLATE_TYPE_PARAMETER.value,
       cindex.CursorKind.TEMPLATE_NON_TYPE_PARAMETER.value])
+    self.isInProject = False
 
   def removeFile(self,fileName):
     ''' Goes through all information about the usr and remove anything  that has to do wit the file. Returns if the usr has no associated files.'''
@@ -38,25 +40,29 @@ class UsrInfo:
     self.associatedFiles.discard(fileName)
     return len(self.associatedFiles) == 0
 
-  def addDefinition(self,loc):
-    self.definitions.add((os.path.normpath(loc.file.name), loc.line, loc.column))
-  def addDeclaration(self,loc):
+  def addDefinition(self,loc,projRoot):
+    addition = (os.path.normpath(loc.file.name), loc.line, loc.column)
+    if addition not in self.definitions:
+      self.definitions.add(addition)
+      if not self.isInProject:
+        if addition[0].startswith(projRoot):
+          self.isInProject = True
+
+  def addDeclaration(self,loc,projRoot):
     self.declarations.add((os.path.normpath(loc.file.name), loc.line, loc.column))
-  def addReference(self,loc,kind,parent = None):
+    addition = (os.path.normpath(loc.file.name), loc.line, loc.column)
+    if addition not in self.declarations:
+      self.declarations.add(addition)
+      if not self.isInProject:
+        if addition[0].startswith(projRoot):
+          self.isInProject = True
+
+  def addReference(self,loc,kind,parent = None,projRoot = None):
     ''' From the parent we can get the type of the derived class in
         case of a CXX_BASE_SPECIFIER.'''
     self.references.add((os.path.normpath(loc.file.name), loc.line, loc.column, kind, parent))
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(os.path.normpath(fileName))
-
-  def isInProject(self, root):
-    for d in self.definitions:
-      if d[0].startswith(root):
-        return True
-    for d in self.declarations:
-      if d[0].startswith(root):
-        return True
-    return False
 
   def getLocations(self, locType):
     ''' Get the locations, sorted!'''
@@ -361,9 +367,9 @@ class ProjectDatabase:
         addDeclaration(cursor.lexical_parent)
       usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
       if cursor.is_definition():
-        usrInfo.addDefinition(cursor.location)
+        usrInfo.addDefinition(cursor.location,self.root)
       else:
-        usrInfo.addDeclaration(cursor.location)
+        usrInfo.addDeclaration(cursor.location, self.root)
       usrInfo.addAssociatedFile(fileName)
       return usrInfo
 
@@ -473,7 +479,7 @@ class ProjectDatabase:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      if usr.isInProject(self.root):
+      if usr.isInProject:
         yield (tName,positions,kind,usr.usr)
 
   def getDerivedClassesTypeNames(self, baseUsr):
