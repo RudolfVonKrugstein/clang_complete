@@ -796,7 +796,7 @@ endfunction
 
 function! ClangGotoDeclarationsAndDefinitins()
   python vim.command("let l:usr=\"" + getUsrUnderCursor() + "\"")
-  call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions']])
+  call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions']],{'auto_preview' : 1})
 endfunction
 
 " debug function
