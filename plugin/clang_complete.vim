@@ -194,6 +194,10 @@ if root is not None:
   vim.command("let b:clang_project_root = \"" + root + "\"")
 endpython
 
+  augroup ClangMark
+    au!
+    au CursorHold,CursorHoldI <buffer> call ClangMarkOccurences()
+  augroup end
 endfunction
 
 
@@ -801,6 +805,18 @@ endfunction
 
 function! ClangGotoNextOccurence()
   python gotoNextOccurenceOfUsr(getUsrUnderCursor())
+endfunction
+
+" Occurnce matching
+hi link AutomaticWord IncSearch
+function! ClangMarkOccurences()
+  if exists('w:matchid')
+    call matchdelete(w:matchid)
+  endif
+  python vim.command("let l:occ = " + pythonListOfTuplesToVim(getOccurencesOfUsr(getUsrUnderCursor())))
+  let regex='\v'.join(map(copy(l:occ), '"%".v:val[0]."l%".v:val[1]."c.{".v:val[2]."}"'), '|')
+  echo regex
+  let w:matchid = matchadd('AutomaticWord',regex, -1)
 endfunction
 
 " debug function

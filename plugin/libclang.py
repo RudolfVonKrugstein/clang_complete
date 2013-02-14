@@ -224,6 +224,27 @@ def gotoNextOccurenceOfUsr(usr):
       return
   openLocation(occ[0])
 
+def getOccurencesOfUsr(usr):
+  '''Returns the occurnces of an usr in the format:
+     '''
+  projPath = vim.eval("b:clang_project_root")
+  if projPath is None or projPath == "":
+    return []
+  proj = projectDatabase.getProjectFromRoot(projPath)
+  occ = proj.getUsrLocations(usr,"occurences")
+  res = []
+  if occ is None:
+    return res
+  for o in occ:
+    byteOffset = int(vim.eval("line2byte(" + str(o[1]) + ")")) + o[2]
+    bufnr      = int(vim.eval("bufnr(\"" + o[0] + "\")"))
+    if bufnr != -1:
+      res.append((bufnr,byteOffset,5))
+  return res
+
+def pythonListOfTuplesToVim(lt):
+  return str(map (list, lt))
+
 def openLocation(l):
   print "Opening location",l
   path = l[0]
