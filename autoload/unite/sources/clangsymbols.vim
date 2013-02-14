@@ -13,7 +13,6 @@ filePath = vim.eval('expand("%:p")')
 args = vim.eval('b:clang_parameters')
 projRoot = vim.eval('b:clang_project_root')
 bringProjectUpToDate(projRoot)
-print "Getting symbols",time.time()
 symbols = projectDatabase.getFilesProjectSymbolNames(filePath,args.split(" "))
 if symbols is None:
   vim.command("let list = []")
