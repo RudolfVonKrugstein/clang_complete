@@ -92,6 +92,8 @@ def getUnsavedFiles():
   '''Returns a dict of unsaved files (see projectDatabase for the class).'''
   res = dict()
   for b in vim.buffers:
+    if b.name is None or b.name == "":
+      continue
     mod = int(vim.eval("getbufvar(" + str(b.number) + ",\"&mod\")"))
     name = os.path.abspath(b.name)
     if mod != 0:
