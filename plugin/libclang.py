@@ -226,20 +226,21 @@ def gotoNextOccurenceOfUsr(usr):
 
 def getOccurencesOfUsr(usr):
   '''Returns the occurnces of an usr in the format:
+     [(buffernumber,line,col,extend)]
      '''
   projPath = vim.eval("b:clang_project_root")
   if projPath is None or projPath == "":
     return []
   proj = projectDatabase.getProjectFromRoot(projPath)
   occ = proj.getUsrLocations(usr,"occurences")
+  length = len(proj.getUsrSpelling(usr))
   res = []
   if occ is None:
     return res
   for o in occ:
-    byteOffset = int(vim.eval("line2byte(" + str(o[1]) + ")")) + o[2]
     bufnr      = int(vim.eval("bufnr(\"" + o[0] + "\")"))
     if bufnr != -1:
-      res.append((bufnr,byteOffset,5))
+      res.append((bufnr,o[1],o[2],length))
   return res
 
 def pythonListOfTuplesToVim(lt):

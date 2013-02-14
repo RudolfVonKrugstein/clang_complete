@@ -436,6 +436,9 @@ class ProjectDatabase:
   def getUsrLocations(self, usr, locType):
     return self.usrInfos[usr].getLocations(locType)
 
+  def getUsrSpelling(self,usr):
+    return self.usrInfos[usr].spelling
+
   def getAllTypeNames(self):
     '''List of all (full) type names and the position where
        they are declated. If multiple positions are found for, the type name

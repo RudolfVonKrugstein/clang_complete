@@ -195,7 +195,7 @@ if root is not None:
 endpython
 
   augroup ClangMark
-    au!
+    au! * <buffer>
     au CursorHold,CursorHoldI <buffer> call ClangMarkOccurences()
   augroup end
 endfunction
@@ -808,15 +808,19 @@ function! ClangGotoNextOccurence()
 endfunction
 
 " Occurnce matching
-hi link AutomaticWord IncSearch
+hi Occurence guibg=DarkBlue
 function! ClangMarkOccurences()
-  if exists('w:matchid')
-    call matchdelete(w:matchid)
+  if !exists("b:clang_project_root")
+    return
   endif
   python vim.command("let l:occ = " + pythonListOfTuplesToVim(getOccurencesOfUsr(getUsrUnderCursor())))
-  let regex='\v'.join(map(copy(l:occ), '"%".v:val[0]."l%".v:val[1]."c.{".v:val[2]."}"'), '|')
-  echo regex
-  let w:matchid = matchadd('AutomaticWord',regex, -1)
+  if len(l:occ) >0
+    if exists('w:matchid')
+      call matchdelete(w:matchid)
+    endif
+    let regex='\v'.join(map(copy(l:occ), '"%".v:val[1]."l%".v:val[2]."c.{".v:val[3]."}"'), '|')
+    let w:matchid = matchadd('Occurence',regex, -1)
+  endif
 endfunction
 
 " debug function
