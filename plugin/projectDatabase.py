@@ -318,12 +318,15 @@ class ProjectDatabase:
 
     # there are some cursor, we are not interested in
     # I am sure other things will come up
+    def uninterestingCursor(c):
+      return c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
+          cindex.CursorKind.LINKAGE_SPEC.value,
+          cindex.CursorKind.UNEXPOSED_DECL.value
+          ]
 
-    if c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
-                        cindex.CursorKind.LINKAGE_SPEC.value,
-                        cindex.CursorKind.UNEXPOSED_DECL.value
-                       ]:
+    if uninterestingCursor(c):
       return
+
 
     # get the usr of the parent
     # this is interesting for CXX_BASE_SPECIFIER, becaue we can get the type of the
@@ -353,7 +356,7 @@ class ProjectDatabase:
     # helper function adding declaration and returning the corresponding usr
     def addDeclaration(cursor):
       # if the lexical parent is delcaration, than also add it
-      if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration():
+      if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration() and not uninterestingCursor(cursor.lexical_parent):
         addDeclaration(cursor.lexical_parent)
       usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
       if cursor.is_definition():
@@ -367,6 +370,8 @@ class ProjectDatabase:
     if not (ref is None):
       if not ref.kind.is_declaration():
         raise RuntimeError("Reference has to be delcaration")
+      if uninterestingCursor(ref):
+        return
       refUsrInfo = addDeclaration(ref)
 
     # add the curser itself
