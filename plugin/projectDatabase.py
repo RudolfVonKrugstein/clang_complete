@@ -16,7 +16,10 @@ class UsrInfo:
     self.declarations = set()
     # positions where this usr is defined
     self.definitions = set()
-    self.displayname = displayname
+    if displayname == "":
+      self.displayname = spelling
+    else:
+      self.displayname = displayname
     self.spelling = spelling
     # lexical parent for building full type name
     if (lexical_parent_usr != ""):
@@ -439,6 +442,9 @@ class ProjectDatabase:
       return usrInfo.displayname
 
   def getUsrLocations(self, usr, locType):
+    if not self.usrInfos.has_key(usr):
+      print "Usr not found:",usr
+      return []
     return self.usrInfos[usr].getLocations(locType)
 
   def getUsrSpelling(self,usr):
