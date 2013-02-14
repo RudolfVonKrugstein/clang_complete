@@ -228,6 +228,8 @@ def getOccurencesOfUsr(usr):
   '''Returns the occurnces of an usr in the format:
      [(buffernumber,line,col,extend)]
      '''
+  if usr is None or usr == "":
+    return []
   projPath = vim.eval("b:clang_project_root")
   if projPath is None or projPath == "":
     return []
