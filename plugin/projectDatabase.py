@@ -313,24 +313,28 @@ class ProjectDatabase:
       if not self.fileInfos.has_key(f):
         self.addFile(f,unsavedFiles)
 
+  # there are some cursor, we are not interested in
+  # I am sure other things will come up
+  def uninterestingCursor(c):
+    return c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
+        cindex.CursorKind.LINKAGE_SPEC.value,
+        cindex.CursorKind.UNEXPOSED_DECL.value
+        ]
+
   def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
         Also read any symbol cursor references
         and their lexical parents.
     '''
 
-    # there are some cursor, we are not interested in
-    # I am sure other things will come up
-    def uninterestingCursor(c):
-      return c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
-          cindex.CursorKind.LINKAGE_SPEC.value,
-          cindex.CursorKind.UNEXPOSED_DECL.value
-          ]
 
     if uninterestingCursor(c):
       return
 
+    readOtherCursor(self,c,parent,usrFileEntry,fileName)
 
+
+  def readOtherCursor(self,c,parent,usrFileEntry,fileName)
     # get the usr of the parent
     # this is interesting for CXX_BASE_SPECIFIER, becaue we can get the type of the
     # derived class this way
