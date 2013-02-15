@@ -313,13 +313,31 @@ class ProjectDatabase:
       if not self.fileInfos.has_key(f):
         self.addFile(f,unsavedFiles)
 
-  # there are some cursor, we are not interested in
-  # I am sure other things will come up
-  def uninterestingCursor(c):
+  def uninterestingCursor(self,c):
+    ''' Return true of the type of the cursor does not go into out database'''
     return c.kind.value in [cindex.CursorKind.CXX_ACCESS_SPEC_DECL.value,
         cindex.CursorKind.LINKAGE_SPEC.value,
-        cindex.CursorKind.UNEXPOSED_DECL.value
-        ]
+        cindex.CursorKind.UNEXPOSED_DECL.value]
+
+  def getLexicalParent(self,cursor):
+    '''helper function to get the lexical parent'''
+    if cursor.lexical_parent is None:
+      return None
+    else:
+      return cursor.lexical_parent.get_usr()
+
+  # helper function adding declaration and returning the corresponding usr
+  def addDeclaration(self,cursor, usrFileEntry, fileName):
+    # if the lexical parent is delcaration, than also add it
+    if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration() and not self.uninterestingCursor(cursor.lexical_parent):
+      self.addDeclaration(cursor.lexical_parent, usrFileEntry, fileName)
+    usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, self.getLexicalParent(cursor))
+    if cursor.is_definition():
+      usrInfo.addDefinition(cursor.location,self.root)
+    else:
+      usrInfo.addDeclaration(cursor.location, self.root)
+    usrInfo.addAssociatedFile(fileName)
+    return usrInfo
 
   def readCursor(self,c,parent, usrFileEntry, fileName):
     ''' Read symbol at cursor position.
@@ -327,14 +345,24 @@ class ProjectDatabase:
         and their lexical parents.
     '''
 
-
-    if uninterestingCursor(c):
+    if self.uninterestingCursor(c):
       return
 
-    readOtherCursor(self,c,parent,usrFileEntry,fileName)
+    if c.kind.value == cindex.CursorKind.TEMPLATE_REF.value:
+      self.readTemplateRefCursor(c,parent,usrFileEntry,fileName)
+      return
 
+    self.readOtherCursor(c,parent,usrFileEntry,fileName)
 
-  def readOtherCursor(self,c,parent,usrFileEntry,fileName)
+  def readTemplateRefCursor(self,c,parent,usrFileEntry,fileName):
+    '''Make connection between parent and reference'''
+    # add the declaration of the template
+    refUsrInfo = self.addDeclaration(c.referenced, usrFileEntry,fileName)
+    parentUsr = parent.get_usr()
+
+    self.usrInfos[parentUsr].template = refUsrInfo.usr
+
+  def readOtherCursor(self,c,parent,usrFileEntry,fileName):
     # get the usr of the parent
     # this is interesting for CXX_BASE_SPECIFIER, becaue we can get the type of the
     # derived class this way
@@ -346,12 +374,6 @@ class ProjectDatabase:
     ref = None
     if (not (c.referenced is None)) and (c.referenced != conf.lib.clang_getNullCursor()):
       ref = c.referenced
-    # helper function to get the lexical parent
-    def getLexicalParent(cursor):
-      if cursor.lexical_parent is None:
-        return None
-      else:
-        return cursor.lexical_parent.get_usr()
     # we have no interest in a cursor with no location in a source file
     # also if it nor its reference has an non-empty usr, it has nothing
     # interesing in it
@@ -360,31 +382,19 @@ class ProjectDatabase:
     if c.get_usr() == "" and (ref is None or ref.get_usr() == ""):
       return
 
-    # helper function adding declaration and returning the corresponding usr
-    def addDeclaration(cursor):
-      # if the lexical parent is delcaration, than also add it
-      if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration() and not uninterestingCursor(cursor.lexical_parent):
-        addDeclaration(cursor.lexical_parent)
-      usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, getLexicalParent(cursor))
-      if cursor.is_definition():
-        usrInfo.addDefinition(cursor.location,self.root)
-      else:
-        usrInfo.addDeclaration(cursor.location, self.root)
-      usrInfo.addAssociatedFile(fileName)
-      return usrInfo
 
     # if we have a reference, add it
     if not (ref is None):
       if not ref.kind.is_declaration():
         raise RuntimeError("Reference has to be delcaration")
-      if uninterestingCursor(ref):
+      if self.uninterestingCursor(ref):
         return
-      refUsrInfo = addDeclaration(ref)
+      refUsrInfo = self.addDeclaration(ref, usrFileEntry, fileName)
 
     # add the curser itself
     # declarations or  ...
     if c.kind.is_declaration():
-      addDeclaration(c)
+      self.addDeclaration(c, usrFileEntry,fileName)
 
     # reference
     if c.kind.is_reference():
