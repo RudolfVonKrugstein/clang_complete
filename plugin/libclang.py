@@ -4,6 +4,7 @@ import vim
 import time
 import threading
 import os
+import subprocess
 
 # Check if libclang is able to find the builtin include files.
 #
@@ -592,6 +593,14 @@ def getAbbr(strings):
     if chunks.isKindTypedText():
       return chunks.spelling
   return ""
+
+def extractRangeFromFile(fileName, line, col, len):
+  command = "sed -rn \"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\2/p\" " + fileName
+  return subprocess.check_output([command])
+
+def replaceRangeInFile(fileName, line, col, len, newWord):
+  command = "sed -ri \"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\1" + newWord + "/" + fileName
+  subprocess.check_call([command])
 
 kinds = dict({                                                                 \
 # Declarations                                                                 \
