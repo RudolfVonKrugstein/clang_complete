@@ -823,6 +823,10 @@ function! ClangMarkOccurences()
   endif
 endfunction
 
+function! ClangRenameSymbolUnderCursor()
+  python renameUsr(getUsrUnderCursor())
+endfunction
+
 " debug function
 function! g:echoUsrUnderCursor()
   python print "Usr: ",getUsrUnderCursor()

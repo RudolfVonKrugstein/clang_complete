@@ -594,13 +594,80 @@ def getAbbr(strings):
       return chunks.spelling
   return ""
 
+def renameUsr(usr):
+  projPath = vim.eval("b:clang_project_root")
+  bringProjectUpToDate(projPath)
+  proj = projectDatabase.getProjectFromRoot(projPath)
+  if proj is None:
+    print "No project loaded"
+    return
+
+  if not proj.usrInfos.has_key(usr):
+    print "Sorry, usr " + usr + " not found in project"
+
+  oldName = proj.usrInfos[usr].spelling
+
+  vim.command('call inputsave()')
+  vim.command("let user_input = input('Replace " + oldName + " with: ')")
+  vim.command('call inputrestore()')
+  newName = vim.eval('user_input')
+
+  if newName is None:
+    return
+
+  locs = proj.usrInfos[usr].getLocations("occurences")
+  tryReplaceInFiles(locs,oldName,newName)
+
+def tryReplaceInFiles(locs, old, new):
+  # check that it is correct
+  for l in locs:
+    if extractRangeFromBufferOrFile(l[0], l[1], l[2], len(old)) != old:
+      print "Cannot replace because " + l[0] + " (" + str(l[1]) + "," + str(l[2]) + ") is not " + old + " (found " + extractRangeFromBufferOrFile(l[0], l[1], l[2], len(old))+ ")"
+      return
+  # good do replacing
+  for l in locs:
+    replaceRangeInBufferOrFile(l[0], l[1], l[2], len(old), new)
+  print "Replaced at " + str(len(locs)) + " locations"
+
+
+def replaceRangeInBufferOrFile(name, line, col, len, new):
+  bufnr = int(vim.eval("bufnr(\"" + name + "\")"))
+  if bufnr == -1:
+    return replaceRangeInFile(name, line, col, len, new)
+  else:
+    return replaceRangeInBuffer(bufnr-1, line, col, len, new)
+ 
+def extractRangeFromBufferOrFile(name, line, col, len):
+  bufnr = int(vim.eval("bufnr(\"" + name + "\")"))
+  if bufnr == -1:
+    return extractRangeFromFile(name, line, col, len)
+  else:
+    return extractRangeFromBuffer(bufnr-1, line, col, len)
+
+def extractRangeFromBuffer(bufNum, line, col, len):
+  return vim.buffers[bufNum][line-1][col-1:(col-1+len)]
+
+def replaceRangeInBuffer(bufNum, line, col, len, newWord):
+  vim.buffers[bufNum][line-1] = vim.buffers[bufNum][line-1][:col-1] + newWord + vim.buffers[bufNum][line-1][col-1+len:]
+
 def extractRangeFromFile(fileName, line, col, len):
-  command = "sed -rn \"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\2/p\" " + fileName
-  return subprocess.check_output([command])
+  f = open(fileName,"r")
+  lines = f.readlines()
+  f.close()
+  return lines[line-1][col-1:(col-1+len)]
+#  command = ["sed","-rn","\"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\2/p\"",fileName]
+#  return subprocess.check_output(command)
 
 def replaceRangeInFile(fileName, line, col, len, newWord):
-  command = "sed -ri \"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\1" + newWord + "/" + fileName
-  subprocess.check_call([command])
+  f = open(fileName,"r")
+  lines = f.readlines()
+  f.close()
+  lines[line-1] = lines[line-1][:col-1] + newWord + lines[line-1][col-1+len:]
+  f = open(fileName,"w")
+  f.writelines(lines)
+  f.close()
+#  command = "sed -ri \"" + str(line) + " ~ s/^(.{" + str(col-1) + "})(.{" + str(len) + "}).*$/\\1" + newWord + "/" + fileName
+#  subprocess.check_call([command])
 
 kinds = dict({                                                                 \
 # Declarations                                                                 \
