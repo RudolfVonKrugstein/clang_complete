@@ -101,7 +101,7 @@ def getUnsavedFiles():
       tu = translationUnits.get(b.name)
       if tu is not None:
         changedtick = vim.eval("getbufvar("+str(b.number) + ",\"changedtick\")")
-        res[name] = append(projectDatabase.UnsavedFile(name, "\n".join(b[:]), changedtick, tu))
+        res[name] = projectDatabase.UnsavedFile(name, "\n".join(b[:]), changedtick, tu)
   return res
 
 # Get a tuple (fileName, fileContent) for the file opened in the current
