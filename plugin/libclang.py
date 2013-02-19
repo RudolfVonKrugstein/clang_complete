@@ -615,7 +615,7 @@ def renameUsr(usr):
   if newName is None:
     return
 
-  locs = proj.usrInfos[usr].getLocations("occurences")
+  locs = proj.getUsrRenameLocations(usr)
   tryReplaceInFiles(locs,oldName,newName)
 
 def tryReplaceInFiles(locs, old, new):

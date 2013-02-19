@@ -93,6 +93,7 @@ class UsrInfo:
       return res
 
 
+
 class UnsavedFile():
   '''Information about a file still in the buffer.'''
   def __init__(self,name,buffer,changedtick,tu = None):
@@ -523,6 +524,62 @@ class ProjectDatabase:
             baseName = self.getFullTypeName(baseUsrInfo)
             for p in positions:
               yield (baseName,p)
+
+  def getTemplateUsrSubRenameLocations(self, usrInfo):
+    # gather occurences of all usrInfos whose template parameter points to us
+    subOccurences = []
+    for ui in self.usrInfos.itervalues():
+      if hasattr(ui,'template') and ui.template == usrInfo.usr:
+        subOccurences.extend(ui.getLocations("occurences"))
+    subOccurences.append(usrInfo.getLocations("occurences"))
+    # unite and remove dublicate candidates
+    return list(set(reduce(lambda a,b: a.extend(b), subOccurences)))
+
+  def getClassDeclUsrSubRenameLocations(self, usrInfo):
+    # if it is a class, we need to add constructor and destructor
+    constrAndDestOcc = []
+    for ui in self.usrInfos.itervalues():
+      if ui.kind == cindex.CursorKind.CONSTRUCTOR.value and ui.lexical_parent == usrInfo.usr:
+        constrAndDestOcc.extend(ui.getLocations("occurences"))
+      if ui.kind == cindex.CursorKind.DESTRUCTOR.value and ui.lexical_parent == usrInfo.usr:
+        def increaseColByOne(l):
+          l[2] = l[2]+1
+          return l
+        constrAndDestOcc.extend(map(increaseColByOne, ui.getLocations("occurences")))
+
+    # unite and remove duplicate candidates
+    return list(set(usrInfo.getLocations("occurences")).union(set(constrAndDestOcc)))
+
+  def getUsrSubRenameLocations(self, usrInfo):
+    '''Get all name locations which are "below" this one. In difference to
+       getRenameLocations, this function does not look into parents (like self.tempate)'''
+    # if we are a template, get our rename locations + all of our instatiations
+    if usrInfo.kind == cindex.CursorKind.CLASS_TEMPLATE.value:
+      return self.getTemplateUsrSubRenameLocations(usrInfo)
+
+    if usrInfo.kind == cindex.CursorKind.CLASS_DECL.value:
+      return self.getClassDeclUsrSubRenameLocations(usrInfo)
+
+    # default behavior is to return simple all occurences
+    return usrInfo.getLocations("occurences")
+
+  def getUsrRenameLocations(self, usr):
+    '''Return all locations where the name would have to be exchanged when the usr is renamed.
+       Queries the rename locations from "parents" (like self.template) or returns the output
+       of getUsrSubRenameLocations'''
+    # extract the usrInfo
+    usrInfo = self.usrInfos[usr]
+
+    if hasattr(usrInfo,'template'):
+      return getUsrRenameLocations(usrInfo.template)
+
+    # some kinds need to return the rename locations of the lexical parent
+    if usrInfo.kind in [cindex.CursorKind.CONSTRUCTOR.value,
+                        cindex.CursorKind.DESTRUCTOR.value]:
+      return self.getUsrRenameLocations(usrInfo.lexical_parent)
+
+    #default: return sub locations
+    return self.getUsrSubRenameLocations(usrInfo)
 
 def updateProject(projectPath, unsavedFiles):
   loadedProjects[projectPath].updateOutdatedFiles(unsavedFiles)
