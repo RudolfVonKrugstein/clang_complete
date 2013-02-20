@@ -64,6 +64,7 @@ class UsrInfo:
     ''' From the parent we can get the type of the derived class in
         case of a CXX_BASE_SPECIFIER.'''
     self.references.add((os.path.normpath(loc.file.name), loc.line, loc.column, kind, parent))
+
   def addAssociatedFile(self,fileName):
     self.associatedFiles.add(os.path.normpath(fileName))
 
@@ -78,7 +79,7 @@ class UsrInfo:
       res.sort()
       return res
     if locType == "references":
-      res = map(lambda x: (x[0],x[1],x[2]), self.references)
+      res = list(set(map(lambda x: (x[0],x[1],x[2]), self.references)))
       res.sort()
       return res
     if locType == "declarations_and_definitions":
@@ -539,16 +540,14 @@ class ProjectDatabase:
     # if it is a class, we need to add constructor and destructor
     constrAndDestOcc = []
     for ui in self.usrInfos.itervalues():
-      if ui.kind == cindex.CursorKind.CONSTRUCTOR.value and ui.lexical_parent == usrInfo.usr:
-        constrAndDestOcc.extend(ui.getLocations("occurences"))
-      if ui.kind == cindex.CursorKind.DESTRUCTOR.value and ui.lexical_parent == usrInfo.usr:
-        def increaseColByOne(l):
-          l[2] = l[2]+1
-          return l
-        constrAndDestOcc.extend(map(increaseColByOne, ui.getLocations("occurences")))
-
+      if ui.kind in [cindex.CursorKind.CONSTRUCTOR.value,cindex.CursorKind.DESTRUCTOR.value] and ui.lexical_parent == usrInfo.usr:
+        constrAndDestOcc.extend(self.getUsrSubRenameLocations(ui))
     # unite and remove duplicate candidates
     return list(set(usrInfo.getLocations("occurences")).union(set(constrAndDestOcc)))
+
+  def getDestructorUsrSubRenameLocations(selgf,usrInfo):
+    # actually, it is just the occurences. But added one to all columns
+    return map(lambda l: (l[0],l[1],l[2]+1),usrInfo.getLocations("occurences"))
 
   def getUsrSubRenameLocations(self, usrInfo):
     '''Get all name locations which are "below" this one. In difference to
@@ -559,6 +558,9 @@ class ProjectDatabase:
 
     if usrInfo.kind == cindex.CursorKind.CLASS_DECL.value:
       return self.getClassDeclUsrSubRenameLocations(usrInfo)
+
+    if usrInfo.kind == cindex.CursorKind.DESTRUCTOR.value:
+      return self.getDestructorUsrSubRenameLocations(usrInfo)
 
     # default behavior is to return simple all occurences
     return usrInfo.getLocations("occurences")
@@ -631,6 +633,7 @@ def onFileSaved(self,path,changedtick,unsavedFiles):
       proj.addFile(path,unsaved_files,unsavedFilesChangedtick)
 
 def getProjectFromRoot(root):
+  root = os.path.abspath(root)
   if loadedProjects.has_key(root):
     return loadedProjects[root]
   return None
@@ -686,6 +689,7 @@ def createOrUpdateProjectForFile(path,args, unsavedFiles):
   return projectPath
 
 def getFilesProjectSymbolNames(filePath,args):
+  filePath = os.path.normpath(filePath)
   proj = getOrLoadFilesProject(filePath, args)
   if proj is None:
     print "Sorry, no project for file " + filePath + " found"
