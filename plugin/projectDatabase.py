@@ -93,7 +93,14 @@ class UsrInfo:
       res.sort()
       return res
 
-
+  def trySetTemplate(self,templUsr):
+    ''' Set the template parameter. We set this only for types (not i.E. variables)
+        derived from a template. Things that are derived from template should also not
+        be listed!!!.'''
+    if self.kind in [cindex.CursorKind.CLASS_DECL.value,
+        cindex.CursorKind.FUNCTION_DECL.value]:
+      self.template = tmplUsr
+    self.shouldBeListed = False
 
 class UnsavedFile():
   '''Information about a file still in the buffer.'''
@@ -387,6 +394,10 @@ class ProjectDatabase:
       if ref is None:
         raise RuntimeError("Reference without reference cursor")
       refUsrInfo.addReference(c.location, c.kind.value, parentUsr)
+      # if this is a template ref from a declaration (our parent), set its template property
+      if c.kind.value == cindex.CursorKind.TEMPLATE_REF.value:
+        if self.usrInfos.has_key(parent.get_usr()):
+          self.usrInfos[parent.get_usr()].trySetTemplate(refUsrInfo.usr)
 
     # no idea what to do with this ...
     #if c.kind.is_attribute():
