@@ -14,11 +14,15 @@ class TestRenames(unittest.TestCase):
   destructorUsr  = "c:@C@TestClass@F@~TestClass#"
   classUsr       = "c:@C@TestClass"
   memberFuncUsr  = "c:@C@TestClass@F@function#"
+  parameterUsr   = "c:main.cpp@116@C@TestClass@F@function#I#@a"
+  localVarUsr    = "c:main.cpp@140@C@TestClass@F@function#I#@b"
   mainFile       = os.path.abspath("./testProject1/main.cpp")
   constructorRenameLocations = [(mainFile,3,5),(mainFile,9,13),(mainFile,10,23),(mainFile,15,12)]
   destructorRenameLocations  = [(mainFile,4,6),(mainFile,18,13)]
   classRenameLocations       = constructorRenameLocations + destructorRenameLocations + [(mainFile,1,7),(mainFile,8,5),(mainFile,9,3),(mainFile,10,3),(mainFile,15,1),(mainFile,18,1),(mainFile,21,9)]
   memberFuncRenameLocations = [(mainFile,5,9),(mainFile,8,16),(mainFile,12,10)]
+  parameterRenameLocations = [(mainFile,8,29),(mainFile,9,24),(mainFile,9,27),(mainFile,12,23)]
+  localVarRenameLocations  = [(mainFile,9,20),(mainFile,9,31),(mainFile,12,27)]
 
   def setUp(self):
     '''Create to project'''
@@ -61,9 +65,21 @@ class TestRenames(unittest.TestCase):
     # need its usr info
     usrInfo = self.proj.usrInfos[self.memberFuncUsr]
     rl = self.proj.getUsrSubRenameLocations(usrInfo)
-    print rl
-    print self.memberFuncRenameLocations
     self.assertEqual(sorted(rl), sorted(self.memberFuncRenameLocations))
+
+  def testParameterRenameLocations(self):
+    '''Test the rename locations of the parameter a'''
+    # need its usr info
+    usrInfo = self.proj.usrInfos[self.parameterUsr]
+    rl = self.proj.getUsrSubRenameLocations(usrInfo)
+    self.assertEqual(sorted(rl), sorted(self.parameterRenameLocations))
+
+  def testLocalVarRenameLocations(self):
+    '''Test the rename locations of the local variable b'''
+    # need its usr info
+    usrInfo = self.proj.usrInfos[self.localVarUsr]
+    rl = self.proj.getUsrSubRenameLocations(usrInfo)
+    self.assertEqual(sorted(rl), sorted(self.localVarRenameLocations))
 
   def testClassAllRenameLocations(self):
     '''Test what happens if we get all rename locations'''
@@ -74,5 +90,6 @@ class TestRenames(unittest.TestCase):
     self.assertEqual(sorted(constRenameLoc), shouldRenameLoc)
     self.assertEqual(sorted(destrRenameLoc), shouldRenameLoc)
     self.assertEqual(sorted(classRenameLoc), shouldRenameLoc)
+
 
 
