@@ -13,7 +13,7 @@ class TestRenames(unittest.TestCase):
   constructorUsr = "c:@C@TestClass@F@TestClass#"
   destructorUsr  = "c:@C@TestClass@F@~TestClass#"
   classUsr       = "c:@C@TestClass"
-  memberFuncUsr  = "c:@C@TestClass@F@function#"
+  memberFuncUsr  = "c:@C@TestClass@F@function#I#"
   parameterUsr   = "c:main.cpp@116@C@TestClass@F@function#I#@a"
   localVarUsr    = "c:main.cpp@140@C@TestClass@F@function#I#@b"
   mainFile       = os.path.abspath("./testProject1/main.cpp")
@@ -21,8 +21,8 @@ class TestRenames(unittest.TestCase):
   destructorRenameLocations  = [(mainFile,4,6),(mainFile,18,13)]
   classRenameLocations       = constructorRenameLocations + destructorRenameLocations + [(mainFile,1,7),(mainFile,8,5),(mainFile,9,3),(mainFile,10,3),(mainFile,15,1),(mainFile,18,1),(mainFile,21,9)]
   memberFuncRenameLocations = [(mainFile,5,9),(mainFile,8,16),(mainFile,12,10)]
-  parameterRenameLocations = [(mainFile,8,29),(mainFile,9,24),(mainFile,9,27),(mainFile,12,23)]
-  localVarRenameLocations  = [(mainFile,9,20),(mainFile,9,31),(mainFile,12,27)]
+  parameterRenameLocations  = [(mainFile,8,29),(mainFile,9,24),(mainFile,9,27),(mainFile,12,19)]
+  localVarRenameLocations   = [(mainFile,9,20),(mainFile,9,31),(mainFile,12,23)]
 
   def setUp(self):
     '''Create to project'''
