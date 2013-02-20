@@ -37,7 +37,7 @@ class TestRenames(unittest.TestCase):
     self.proj = pd.getProjectFromRoot("./testProject1")
     assert self.proj is not None
 
-  def teardown(self):
+  def tearDown(self):
     '''remove the project file, so that it is created freshly next time'''
     pd.onUnloadFile("./testPorject1/main.cpp")
     os.remove("./testProject1/.clang_complete.project.dict")
