@@ -350,21 +350,6 @@ class ProjectDatabase:
     if self.uninterestingCursor(c):
       return
 
-    if c.kind.value == cindex.CursorKind.TEMPLATE_REF.value:
-      self.readTemplateRefCursor(c,parent,usrFileEntry,fileName)
-      return
-
-    self.readOtherCursor(c,parent,usrFileEntry,fileName)
-
-  def readTemplateRefCursor(self,c,parent,usrFileEntry,fileName):
-    '''Make connection between parent and reference'''
-    # add the declaration of the template
-    refUsrInfo = self.addDeclaration(c.referenced, usrFileEntry,fileName)
-    parentUsr = parent.get_usr()
-
-    self.usrInfos[parentUsr].template = refUsrInfo.usr
-
-  def readOtherCursor(self,c,parent,usrFileEntry,fileName):
     # get the usr of the parent
     # this is interesting for CXX_BASE_SPECIFIER, becaue we can get the type of the
     # derived class this way
@@ -383,7 +368,6 @@ class ProjectDatabase:
       return
     if c.get_usr() == "" and (ref is None or ref.get_usr() == ""):
       return
-
 
     # if we have a reference, add it
     if not (ref is None):
@@ -531,10 +515,12 @@ class ProjectDatabase:
     subOccurences = []
     for ui in self.usrInfos.itervalues():
       if hasattr(ui,'template') and ui.template == usrInfo.usr:
-        subOccurences.extend(ui.getLocations("occurences"))
-    subOccurences.append(usrInfo.getLocations("occurences"))
+        #subOccurences.extend(ui.getLocations("occurences"))
+        subOccurences.extend(self.getUsrSubRenameLocations(ui))
+    # constructor, destructor and stuff is the same as for class declaration
+    subOccurences.extend(self.getClassDeclUsrSubRenameLocations(usrInfo))
     # unite and remove dublicate candidates
-    return list(set(reduce(lambda a,b: a.extend(b), subOccurences)))
+    return list(set(subOccurences))
 
   def getClassDeclUsrSubRenameLocations(self, usrInfo):
     # if it is a class, we need to add constructor and destructor
@@ -573,7 +559,7 @@ class ProjectDatabase:
     usrInfo = self.usrInfos[usr]
 
     if hasattr(usrInfo,'template'):
-      return getUsrRenameLocations(usrInfo.template)
+      return self.getUsrRenameLocations(usrInfo.template)
 
     # some kinds need to return the rename locations of the lexical parent
     if usrInfo.kind in [cindex.CursorKind.CONSTRUCTOR.value,
