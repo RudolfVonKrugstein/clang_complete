@@ -10,7 +10,7 @@ class TestBase(unittest.TestCase):
   def setUp(self):
     self.proj = []
     '''Create the projects'''
-    for pId in xrange(1,numProjects+1):
+    for pId in xrange(1,self.numProjects+1):
       p = "./testProject" + str(pId) + "/"
       if os.path.exists(p + ".clang_complete.project.dict"):
         os.remove(p + ".clang_complete.project.dict")
@@ -21,7 +21,7 @@ class TestBase(unittest.TestCase):
 
   def tearDown(self):
     '''remove the project file, so that it is created freshly next time'''
-    for pId in xrange(1,numProjects+1):
+    for pId in xrange(1,self.numProjects+1):
       p = "./testProject" + str(pId) + "/"
       pd.onUnloadFile(p + "main.cpp")
       os.remove(p + ".clang_complete.project.dict")
