@@ -20,6 +20,7 @@ class TestRenames(test_base.TestBase):
   templFuncUsr   = "c:@FT@>1#Tfunction#"
   templFuncInstUsr = "c:@F@function<#I>#"
   templClassUsr  = "c:@CT>1#T@TemplClassTest"
+  templClassInstUsr = "c:@C@TemplClassTest>#d"
   templClassConstrUsr = "c:@CT>1#T@TemplClassTest@F@TemplClassTest<T>#"
   templClassDestrUsr = "c:@CT>1#T@TemplClassTest@F@~TemplClassTest<T>#"
   constructorRenameLocations = [(mainFile[0],3,5),(mainFile[0],9,13),(mainFile[0],10,23),(mainFile[0],15,12)]
@@ -93,6 +94,10 @@ class TestRenames(test_base.TestBase):
     rl2 = self.proj[1].getUsrRenameLocations(self.templFuncInstUsr)
     self.assertEqual(sorted(rl1),sorted(self.templFuncRenameLocations))
     self.assertEqual(sorted(rl2),sorted(self.templFuncRenameLocations))
+
+  def testTemplClassInstTemplatePara(self):
+    '''Test if the template parameter of the template class instatiation is correct (project 3)'''
+    self.assertEqual(self.proj[2].usrInfos[self.templClassInstUsr].template, self.templClassUsr)
 
   def testTemplClassAllRenameLocations(self):
     '''Test all the rename locations of the template class (project 3)'''
