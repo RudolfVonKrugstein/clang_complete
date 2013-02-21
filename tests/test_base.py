@@ -6,17 +6,24 @@ sys.path.append("../plugin")
 import projectDatabase as pd
 
 class TestBase(unittest.TestCase):
+  numProjects = 3
   def setUp(self):
-    '''Create to project'''
-    if os.path.exists("./testProject1/.clang_complete.project.dict"):
-      os.remove("./testProject1/.clang_complete.project.dict")
-    pd.onLoadFile("./testProject1/main.cpp",self.args,1)
-    pd.createOrUpdateProjectForFile("./testProject1/main.cpp",["-x","c++"],[])
-    self.proj = pd.getProjectFromRoot("./testProject1")
-    assert self.proj is not None
+    self.proj = []
+    '''Create the projects'''
+    for pId in xrange(1,numProjects+1):
+      p = "./testProject" + str(pId) + "/"
+      if os.path.exists(p + ".clang_complete.project.dict"):
+        os.remove(p + ".clang_complete.project.dict")
+      pd.onLoadFile(p + "main.cpp",self.args,1)
+      pd.createOrUpdateProjectForFile(p + "main.cpp",["-x","c++"],[])
+      self.proj.append(pd.getProjectFromRoot(p))
+      assert self.proj[pId-1] is not None
 
   def tearDown(self):
     '''remove the project file, so that it is created freshly next time'''
-    pd.onUnloadFile("./testPorject1/main.cpp")
-    os.remove("./testProject1/.clang_complete.project.dict")
+    for pId in xrange(1,numProjects+1):
+      p = "./testProject" + str(pId) + "/"
+      pd.onUnloadFile(p + "main.cpp")
+      os.remove(p + ".clang_complete.project.dict")
     self.proj = None
+      
