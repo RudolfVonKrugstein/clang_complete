@@ -336,12 +336,25 @@ class ProjectDatabase:
     else:
       return cursor.lexical_parent.get_usr()
 
+  def getCursorAtCursorPosition(self,cursor):
+    '''Extract the position of the cursor and get the
+       cursor at that position. This might be a different cursor.
+       For example: A template instanciated class delcraration would
+       return the cursor for the template defintion.'''
+    return cindex.Cursor.from_location(cursor.translation_unit, cursor.location)
+
   # helper function adding declaration and returning the corresponding usr
   def addDeclaration(self,cursor, usrFileEntry, fileName):
     # if the lexical parent is delcaration, than also add it
     if (cursor.lexical_parent is not None) and cursor.lexical_parent.kind.is_declaration() and not self.uninterestingCursor(cursor.lexical_parent):
       self.addDeclaration(cursor.lexical_parent, usrFileEntry, fileName)
     usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, self.getLexicalParent(cursor))
+    # check if this is template
+    if cursor.displayname.find("<") != -1:
+      cursor2 = self.getCursorAtCursorPosition(cursor)
+      if cursor2.get_usr() != cursor.get_usr():
+        usrInfo.trySetTemplate(cursor2.get_usr())
+
     if cursor.is_definition():
       usrInfo.addDefinition(cursor.location,self.root)
     else:
@@ -396,13 +409,13 @@ class ProjectDatabase:
         raise RuntimeError("Reference without reference cursor")
       refUsrInfo.addReference(c.location, c.kind.value, parentUsr)
       # if this is a template ref from a declaration (our parent), set its template property
-      if c.kind.value == cindex.CursorKind.TEMPLATE_REF.value:
-        if parent.referenced is None:
-          parUsr = parent.get_usr()
-        else:
-          parUsr = parent.referenced.get_usr()
-        if self.usrInfos.has_key(parUsr):
-          self.usrInfos[parUsr].trySetTemplate(parUsr)
+#      if c.kind.value == cindex.CursorKind.TEMPLATE_REF.value:
+#        if parent.referenced is None:
+#          parUsr = parent.get_usr()
+#        else:
+#          parUsr = parent.referenced.get_usr()
+#        if self.usrInfos.has_key(parUsr):
+#          self.usrInfos[parUsr].trySetTemplate(parUsr)
 
     # no idea what to do with this ...
     #if c.kind.is_attribute():
