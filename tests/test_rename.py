@@ -17,6 +17,8 @@ class TestRenames(test_base.TestBase):
   memberFuncUsr  = "c:@C@TestClass@F@function#I#"
   parameterUsr   = "c:main.cpp@116@C@TestClass@F@function#I#@a"
   localVarUsr    = "c:main.cpp@140@C@TestClass@F@function#I#@b"
+  templFuncUsr   = "c:@FT@>1#Tfunction#"
+  templFuncInstUsr = "c:@F@function<#I>#"
   templClassUsr  = "c:@CT>1#T@TemplClassTest"
   templClassConstrUsr = "c:@CT>1#T@TemplClassTest@F@TemplClassTest<T>#"
   templClassDestrUsr = "c:@CT>1#T@TemplClassTest@F@~TemplClassTest<T>#"
@@ -26,6 +28,7 @@ class TestRenames(test_base.TestBase):
   memberFuncRenameLocations = [(mainFile[0],5,9),(mainFile[0],8,16),(mainFile[0],12,10)]
   parameterRenameLocations  = [(mainFile[0],8,29),(mainFile[0],9,24),(mainFile[0],9,27),(mainFile[0],12,19)]
   localVarRenameLocations   = [(mainFile[0],9,20),(mainFile[0],9,31),(mainFile[0],12,23)]
+  templFuncRenameLocations = [(mainFile[1],2,3),(mainFile[1],5,3),(mainFile[1],6,10),(mainFile[1],10,5),(mainFile[1],15,8)]
   templClassRenameLocations = [(mainFile[2],3,7),(mainFile[2],5,3),(mainFile[2],6,4),(mainFile[2],9,31),(mainFile[2],13,1),(mainFile[2],13,20),(mainFile[2],14,3),(mainFile[2],14,35),(mainFile[2],17,1),(mainFile[2],17,21)]
 
   def testConstructorSubRenameLocations(self):
@@ -79,6 +82,17 @@ class TestRenames(test_base.TestBase):
     self.assertEqual(sorted(constRenameLoc), shouldRenameLoc)
     self.assertEqual(sorted(destrRenameLoc), shouldRenameLoc)
     self.assertEqual(sorted(classRenameLoc), shouldRenameLoc)
+
+  def testTemplFunctionInstTemplatePara(self):
+    '''Test if the template parameter of the template function instatiation is correct (project 2)'''
+    self.assertEqual(self.proj[1].usrInfos[self.templFuncInstUsr].template, self.templFuncUsr)
+
+  def testTemplFunctionAllRenameLocations(self):
+    '''Test all rename locations of the template function (project 2)'''
+    rl1 = self.proj[1].getUsrRenameLocations(self.templFuncUsr)
+    rl2 = self.proj[1].getUsrRenameLocations(self.templFuncInstUsr)
+    self.assertEqual(sorted(rl1),sorted(self.templFuncRenameLocations))
+    self.assertEqual(sorted(rl2),sorted(self.templFuncRenameLocations))
 
   def testTemplClassAllRenameLocations(self):
     '''Test all the rename locations of the template class (project 3)'''
