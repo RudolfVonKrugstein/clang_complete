@@ -1282,6 +1282,17 @@ class Cursor(Structure):
 
         return self._referenced
 
+    @property
+    def template(self):
+         """
+         Given a cursor that may represent a specialization or instantiation
+         of a template, retrieve the cursor that represents the template that
+         it specializes or from which it was instantiated.
+         """
+         if not hasattr(self, '_template'):
+           self._template = conf.lib.clang_getSpecializedCursorTemplate(self)
+         return self._template
+
     def get_arguments(self):
         """Return an iterator for accessing the arguments of this cursor."""
         num_args = conf.lib.clang_Cursor_getNumArguments(self)

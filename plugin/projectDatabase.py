@@ -336,13 +336,6 @@ class ProjectDatabase:
     else:
       return cursor.lexical_parent.get_usr()
 
-  def getCursorAtCursorPosition(self,cursor):
-    '''Extract the position of the cursor and get the
-       cursor at that position. This might be a different cursor.
-       For example: A template instanciated class delcraration would
-       return the cursor for the template defintion.'''
-    return cindex.Cursor.from_location(cursor.translation_unit, cursor.location)
-
   # helper function adding declaration and returning the corresponding usr
   def addDeclaration(self,cursor, usrFileEntry, fileName):
     # if the lexical parent is delcaration, than also add it
@@ -350,10 +343,8 @@ class ProjectDatabase:
       self.addDeclaration(cursor.lexical_parent, usrFileEntry, fileName)
     usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, self.getLexicalParent(cursor))
     # check if this is template
-    if cursor.displayname.find("<") != -1:
-      cursor2 = self.getCursorAtCursorPosition(cursor)
-      if cursor2.get_usr() != cursor.get_usr():
-        usrInfo.trySetTemplate(cursor2.get_usr())
+    if cursor.template is not None and cursor.template != conf.lib.clang_getNullCursor():
+      usrInfo.trySetTemplate(cursor.template.get_usr())
 
     if cursor.is_definition():
       usrInfo.addDefinition(cursor.location,self.root)
