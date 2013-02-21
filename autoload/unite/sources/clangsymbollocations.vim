@@ -11,7 +11,7 @@ sys.path.insert(1, "../../../plugin")
 import projectDatabase
 usr = vim.eval("a:args[0]")
 locationType = vim.eval("a:args[1]")
-projRoot = vim.eval('b:clang_project_root')
+projRoot = vim.eval('a:args[2]')
 if projRoot is None or projRoot == "" or usr is None or locationType is None or usr == "":
   vim.command("let list = []")
 else:

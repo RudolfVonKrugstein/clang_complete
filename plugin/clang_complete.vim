@@ -800,7 +800,11 @@ endfunction
 
 function! ClangGotoDeclarationsAndDefinitins()
   python vim.command("let l:usr=\"" + getUsrUnderCursor() + "\"")
-  call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions']],{'auto_preview' : 1})
+  call unite#start([['clangsymbollocations',l:usr,'declarations_and_definitions',b:clang_project_root]],{'auto_preview' : 1})
+endfunction
+
+function! ClangListAllProjectSymbols()
+  call unite#start([['clangsymbols',b:clang_project_root]])
 endfunction
 
 function! ClangGotoNextOccurence()
