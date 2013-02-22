@@ -29,7 +29,7 @@ class TestRenames(test_base.TestBase):
   memberFuncRenameLocations = [(mainFile[0],5,9),(mainFile[0],8,16),(mainFile[0],12,10)]
   parameterRenameLocations  = [(mainFile[0],8,29),(mainFile[0],9,24),(mainFile[0],9,27),(mainFile[0],12,19)]
   localVarRenameLocations   = [(mainFile[0],9,20),(mainFile[0],9,31),(mainFile[0],12,23)]
-  templFuncRenameLocations = [(mainFile[1],2,3),(mainFile[1],5,3),(mainFile[1],6,10),(mainFile[1],10,5),(mainFile[1],15,8)]
+  templFuncRenameLocations = [(mainFile[1],2,3),(mainFile[1],5,3),(mainFile[1],6,25),(mainFile[1],10,5),(mainFile[1],15,8)]
   templClassRenameLocations = [(mainFile[2],3,7),(mainFile[2],5,3),(mainFile[2],6,4),(mainFile[2],9,31),(mainFile[2],13,1),(mainFile[2],13,20),(mainFile[2],14,3),(mainFile[2],14,35),(mainFile[2],17,1),(mainFile[2],17,21)]
 
   def testConstructorSubRenameLocations(self):

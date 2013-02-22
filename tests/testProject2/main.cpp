@@ -3,7 +3,7 @@ T function();
 
 template<class T>
 T function() {
-  return function<T>();
+  return static_cast<T>(function<float>());
 }
 
 template<>
