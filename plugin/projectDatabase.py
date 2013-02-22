@@ -94,13 +94,13 @@ class UsrInfo:
       res.sort()
       return res
 
-  def trySetTemplate(self,templUsr):
+  def setTemplate(self,templUsr):
     ''' Set the template parameter. We set this only for types (not i.E. variables)
         derived from a template. Things that are derived from template should also not
         be listed!!!.'''
+    self.template = templUsr
     if self.kind in [cindex.CursorKind.CLASS_DECL.value,
         cindex.CursorKind.FUNCTION_DECL.value]:
-      self.template = templUsr
       self.shouldBeListed = False
 
 class UnsavedFile():
@@ -344,7 +344,7 @@ class ProjectDatabase:
     usrInfo = self.getOrCreateUsr(cursor.get_usr(), cursor.kind.value, usrFileEntry, cursor.displayname, cursor.spelling, self.getLexicalParent(cursor))
     # check if this is template
     if cursor.template is not None and cursor.template != conf.lib.clang_getNullCursor():
-      usrInfo.trySetTemplate(cursor.template.get_usr())
+      usrInfo.setTemplate(cursor.template.get_usr())
 
     if cursor.is_definition():
       usrInfo.addDefinition(cursor.location,self.root)
@@ -358,7 +358,6 @@ class ProjectDatabase:
         Also read any symbol cursor references
         and their lexical parents.
     '''
-
     if self.uninterestingCursor(c):
       return
 
@@ -498,7 +497,7 @@ class ProjectDatabase:
        [(typeName,set([(fileName,line,column)...]),kindname,usr),...]'''
     res = []
     for k,usr in self.usrInfos.iteritems():
-      if not usr.shouldBeListed:
+      if not usr.shouldBeListed or not usr.isInProject:
         continue
       tName = self.getFullDisplayTypeName(usr)
       kind  = cindex.CursorKind.from_id(usr.kind).name
@@ -507,8 +506,7 @@ class ProjectDatabase:
         positions = usr.definitions
       else:
         positions = usr.declarations
-      if usr.isInProject:
-        res.append( (tName,positions,kind,usr.usr) )
+      res.append( (tName,positions,kind,usr.usr) )
     res.sort()
     return res
 
@@ -559,7 +557,8 @@ class ProjectDatabase:
     '''Get all name locations which are "below" this one. In difference to
        getRenameLocations, this function does not look into parents (like self.tempate)'''
     # if we are a template, get our rename locations + all of our instatiations
-    if usrInfo.kind == cindex.CursorKind.CLASS_TEMPLATE.value:
+    if usrInfo.kind in [cindex.CursorKind.CLASS_TEMPLATE.value,
+                        cindex.CursorKind.FUNCTION_TEMPLATE.value]:
       return self.getTemplateUsrSubRenameLocations(usrInfo)
 
     if usrInfo.kind == cindex.CursorKind.CLASS_DECL.value:
