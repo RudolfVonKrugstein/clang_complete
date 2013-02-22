@@ -18,9 +18,7 @@ class TestSymbolNames(test_base.TestBase):
       ('TestClass::~TestClass()', set([(mainFile[0], 4, 5)]), 'DESTRUCTOR', 'c:@C@TestClass@F@~TestClass#'),
       ('TestTypeDef', set([(mainFile[0], 21, 19)]), 'TYPEDEF_DECL', 'c:main.cpp@292@T@TestTypeDef')]
   expectedSymbols2 = [
-      ('function()', set([(mainFile[1], 2, 3), (mainFile[1], 5, 3)]), 'FUNCTION_TEMPLATE', 'c:@FT@>1#Tfunction#'),
-      ('function<>()', set([(mainFile[1], 10, 5)]), 'FUNCTION_DECL', 'c:@F@function<#I>#'),
-      ('function<>()', set([(mainFile[1], 15, 8)]), 'FUNCTION_DECL', 'c:@F@function<#d>#')]
+      ('function()', set([(mainFile[1], 2, 3)]), 'FUNCTION_TEMPLATE', 'c:@FT@>1#Tfunction#')]
   expectedSymbols3 = [
       ('TemplClassDerv', set([(mainFile[2], 9, 7)]), 'CLASS_DECL', 'c:@C@TemplClassDerv'),
       ('TemplClassTest::TemplClassTest<T>()', set([(mainFile[2], 5, 3)]), 'CONSTRUCTOR', 'c:@CT>1#T@TemplClassTest@F@TemplClassTest<T>#'),
