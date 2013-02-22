@@ -237,6 +237,8 @@ def getOccurencesOfUsr(usr):
   if projPath is None or projPath == "":
     return []
   proj = projectDatabase.getProjectFromRoot(projPath)
+  if not proj.usrInfos.has_key(usr):
+    return []
   occ = proj.getUsrLocations(usr,"occurences")
   length = len(proj.getUsrSpelling(usr))
   res = []
